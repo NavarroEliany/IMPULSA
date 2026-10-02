@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impulsa — Encuentra lo que necesitas en Ocaña</title>
+  <meta name="description" content="Plataforma que conecta consumidores con emprendimientos locales de Ocaña. Busca en lenguaje natural y recibe recomendaciones." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Navegación -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="#" class="logo">
+        <span class="logo-icon">↑</span>
+        <span class="logo-text">Impulsa</span>
+      </a>
+      <nav class="nav" id="nav">
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#beneficios">Beneficios</a>
+        <a href="#emprendedores">Para emprendedores</a>
+        <a href="#buscar" class="btn btn-primary btn-sm">Buscar ahora</a>
+      </nav>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" id="buscar">
+    <div class="container hero-inner">
+      <div class="hero-badge">Ocaña, Norte de Santander</div>
+      <h1 class="hero-title">
+        Di lo que necesitas.<br />
+        <span class="highlight">Nosotros te conectamos.</span>
+      </h1>
+      <p class="hero-subtitle">
+        Impulsa es la plataforma que une a consumidores con emprendimientos locales.
+        Escribe tu necesidad en lenguaje natural y recibe recomendaciones reales de tu ciudad.
+      </p>
+
+      <!-- Buscador principal -->
+      <div class="search-box">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder='Ej: "regalo para mamá, presupuesto $100.000, entrega mañana"'
+            autocomplete="off"
+          />
+          <button class="btn btn-primary search-btn" id="searchBtn">Buscar</button>
+        </div>
+        <div class="search-examples">
+          <span>Prueba con:</span>
+          <button class="chip" data-query="necesito un pastel de cumpleaños para 20 personas">pastel de cumpleaños</button>
+          <button class="chip" data-query="arreglo floral económico para entrega hoy">arreglo floral</button>
+          <button class="chip" data-query="reparación de celulares cerca del centro">reparación de celulares</button>
+        </div>
+      </div>
+    </div>
+    <div class="hero-bg"></div>
+  </section>
+
+  <!-- Resultados (oculto hasta buscar) -->
+  <section class="results section" id="results" hidden>
+    <div class="container">
+      <div class="results-header">
+        <h2>Resultados para tu búsqueda</h2>
+        <p id="resultsQuery" class="results-query"></p>
+      </div>
+      <div class="results-grid" id="resultsGrid">
+        <!-- Se llenan con JavaScript -->
+      </div>
+      <p class="results-note">
+        * Estos son resultados de demostración. En la versión completa se conectan con la base de datos real y el sistema de recomendaciones.
+      </p>
+    </div>
+  </section>
+
+  <!-- Cómo funciona -->
+  <section class="section" id="como-funciona">
+    <div class="container">
+      <div class="section-header">
+        <h2>Cómo funciona</h2>
+        <p>Tres pasos simples para encontrar lo que necesitas en Ocaña</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Escribe tu necesidad</h3>
+          <p>Describe lo que buscas en tus propias palabras: producto, presupuesto, urgencia o cualquier detalle importante.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Recibe recomendaciones</h3>
+          <p>El sistema interpreta tu solicitud y te muestra emprendimientos locales que se ajustan a lo que necesitas.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Contacta y resuelve</h3>
+          <p>Revisa perfiles, calificaciones y contacta directamente al emprendedor por WhatsApp, Instagram o teléfono.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Beneficios -->
+  <section class="section section-alt" id="beneficios">
+    <div class="container">
+      <div class="section-header">
+        <h2>¿Por qué Impulsa?</h2>
+        <p>Diseñado para la realidad de Ocaña y sus emprendedores</p>
+      </div>
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h3>Búsqueda en lenguaje natural</h3>
+          <p>No necesitas conocer el nombre del negocio. Solo di lo que necesitas, como lo dirías a un amigo.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏪</div>
+          <h3>Emprendimientos locales</h3>
+          <p>Todo el catálogo está enfocado en negocios de Ocaña. Apoyas la economía de tu ciudad.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⭐</div>
+          <h3>Calificaciones reales</h3>
+          <p>Consulta opiniones de otros consumidores y toma decisiones con más confianza.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Contacto directo</h3>
+          <p>Habla con el emprendedor por WhatsApp u otros medios sin intermediarios innecesarios.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Filtros útiles</h3>
+          <p>Refina por precio, categoría, ubicación, disponibilidad o posibilidad de entrega.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>Recomendaciones inteligentes</h3>
+          <p>El sistema sugiere opciones relacionadas con tu necesidad usando inteligencia artificial.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Para emprendedores -->
+  <section class="section" id="emprendedores">
+    <div class="container emprendedores-inner">
+      <div class="emprendedores-text">
+        <h2>¿Tienes un emprendimiento en Ocaña?</h2>
+        <p>
+          Regístrate en Impulsa, crea el perfil de tu negocio y publica tus productos o servicios.
+          Llega a más clientes de tu ciudad sin depender solo de redes sociales.
+        </p>
+        <ul class="check-list">
+          <li>Perfil completo de tu emprendimiento</li>
+          <li>Publicación de productos y servicios con fotos</li>
+          <li>Visibilidad en búsquedas y recomendaciones</li>
+          <li>Calificaciones y opiniones de clientes</li>
+        </ul>
+        <button class="btn btn-primary" id="btnEmprendedor">Quiero registrar mi negocio</button>
+      </div>
+      <div class="emprendedores-card">
+        <div class="mock-card">
+          <div class="mock-badge">Ejemplo de perfil</div>
+          <div class="mock-img">🧁</div>
+          <h4>Dulce Tentación</h4>
+          <p class="mock-cat">Repostería · Centro de Ocaña</p>
+          <p class="mock-desc">Pasteles, cupcakes y postres personalizados. Entregas a domicilio.</p>
+          <div class="mock-rating">★★★★★ <span>4.8 (32 opiniones)</span></div>
+          <div class="mock-contact">WhatsApp · Instagram</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Roles -->
+  <section class="section section-alt">
+    <div class="container">
+      <div class="section-header">
+        <h2>Tres tipos de usuario</h2>
+        <p>Impulsa está pensado para cada rol del ecosistema local</p>
+      </div>
+      <div class="roles">
+        <div class="role-card">
+          <div class="role-icon">🛒</div>
+          <h3>Consumidor</h3>
+          <p>Busca productos o servicios escribiendo su necesidad, aplica filtros, ve recomendaciones y contacta al emprendedor.</p>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">🏪</div>
+          <h3>Emprendedor</h3>
+          <p>Registra su negocio, publica productos, actualiza información y recibe contactos de clientes potenciales.</p>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">⚙️</div>
+          <h3>Administrador</h3>
+          <p>Modera contenido, gestiona usuarios y emprendimientos, y supervisa el correcto funcionamiento de la plataforma.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tecnología (para la presentación académica) -->
+  <section class="section" id="tecnologia">
+    <div class="container">
+      <div class="section-header">
+        <h2>Tecnologías del proyecto</h2>
+        <p>Stack seleccionado para el desarrollo de Impulsa</p>
+      </div>
+      <div class="tech-grid">
+        <div class="tech-item"><strong>Interfaz</strong><span>React</span></div>
+        <div class="tech-item"><strong>Servidor</strong><span>Node.js + Express</span></div>
+        <div class="tech-item"><strong>Base de datos</strong><span>PostgreSQL</span></div>
+        <div class="tech-item"><strong>Autenticación</strong><span>Tokens JWT</span></div>
+        <div class="tech-item"><strong>Inteligencia artificial</strong><span>API de IA + algoritmo</span></div>
+        <div class="tech-item"><strong>Diseño</strong><span>Figma</span></div>
+        <div class="tech-item"><strong>Control de versiones</strong><span>Git + GitHub</span></div>
+        <div class="tech-item"><strong>Gestión</strong><span>Trello + Scrum</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA final -->
+  <section class="cta">
+    <div class="container cta-inner">
+      <h2>¿Listo para probar Impulsa?</h2>
+      <p>Escribe lo que necesitas y descubre emprendimientos de Ocaña que pueden ayudarte.</p>
+      <a href="#buscar" class="btn btn-white">Ir al buscador</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="logo-icon">↑</span> Impulsa
+      </div>
+      <p>Proyecto académico de Ingeniería de Sistemas · Ocaña, Norte de Santander</p>
+      <p class="footer-note">Página de demostración · Los resultados de búsqueda son de ejemplo</p>
+    </div>
+  </footer>
+
+  <!-- Modal simple para emprendedor -->
+  <div class="modal" id="modalEmprendedor" hidden>
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-box">
+      <button class="modal-close" id="modalClose" aria-label="Cerrar">×</button>
+      <h3>Registro de emprendedores</h3>
+      <p>Esta es una demostración. En la versión completa aquí se abriría el formulario de registro para emprendedores.</p>
+      <p class="modal-hint">Funcionalidades previstas: registro con rol Emprendedor, creación de perfil del negocio y publicación de productos o servicios.</p>
+      <button class="btn btn-primary" id="modalOk">Entendido</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
