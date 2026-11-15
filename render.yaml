@@ -1,0 +1,14 @@
+# Despliegue en Render (plan gratis). Un solo servicio sirve la API y el frontend.
+services:
+  - type: web
+    name: impulsa
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/salud
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
