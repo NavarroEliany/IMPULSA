@@ -5,6 +5,7 @@ import { ic, esc, logo, avisar, abrirCapa, cerrarCapa, hace, iniciales, datosDe 
 import './publico.js';
 import './cliente.js';
 import './panel.js';
+import './accesibilidad.js';
 
 const app = document.getElementById('app');
 
