@@ -38,11 +38,11 @@ ruta('/', async () => {
     </div>
     <div class="compo">
       <div class="grande" style="background-image:url('${IMG}emprendedora.jpg')"></div>
-      <div class="flota col g12" style="left:0;bottom:70px;width:330px">
+      <div class="flota col g12" style="left:0;bottom:60px;width:min(330px,62%)">
         <div class="row g8 peq neg">${ic('spark', '#F4B73F')}Ideas que encontró la IA</div>
         ${ideas.map(p => `<a class="row g12" href="#/producto/${p.id}">${mini(p.imagen, p.categoria_emoji, p.id)}<div class="crece"><div class="peq neg">${esc(p.nombre)}</div><b style="font-family:var(--fd);color:var(--brasa)">${pesos(p.precio)}</b></div></a>`).join('')}
       </div>
-      <div class="flota row g12" style="right:-8px;top:36px;width:300px"><span class="redondo" style="background:var(--wa);border:0">${ic('wa', '#fff')}</span>
+      <div class="flota row g12" style="right:12px;top:28px;width:min(300px,78%)"><span class="redondo" style="background:var(--wa);border:0">${ic('wa', '#fff')}</span>
         <div><div class="peq neg">Arte de Doña Gloria</div><div class="peq sua">¡Hola! Sí la tenemos, ¿te la envío hoy?</div></div></div>
       <div class="flota row g8 peq neg" style="right:24px;bottom:8px;background:var(--ink);color:var(--cream);border-radius:999px;padding:12px 18px">${ic('gift', '#F4B73F')}Cumpleaños de Andrés en 3 días</div>
     </div>
