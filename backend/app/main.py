@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -31,6 +31,16 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 for modulo in (publico, auth, cliente, panel):
     app.include_router(modulo.r)
+
+
+@app.middleware("http")
+async def sin_cache_estatico(request: Request, call_next):
+    """El frontend no lleva versión en sus rutas: se obliga al navegador a revalidar cada archivo
+    para que todos los visitantes reciban los cambios apenas se despliegan."""
+    respuesta = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        respuesta.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return respuesta
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 if FRONTEND.exists():
