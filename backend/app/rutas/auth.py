@@ -1,7 +1,7 @@
 """Registro, inicio de sesión y perfil."""
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from .. import sb
@@ -28,6 +28,16 @@ class Login(BaseModel):
 
 class Refresco(BaseModel):
     refresh_token: str
+
+
+class Recuperar(BaseModel):
+    email: str
+
+
+class NuevaClave(BaseModel):
+    email: str
+    codigo: str = Field(min_length=6, max_length=10)
+    password: str = Field(min_length=8)
 
 
 class Perfil(BaseModel):
@@ -83,6 +93,30 @@ async def login(d: Login):
 async def refresh(d: Refresco):
     s = await sb.pedir("POST", "/auth/v1/token", params={"grant_type": "refresh_token"}, json_={"refresh_token": d.refresh_token})
     return {"access_token": s["access_token"], "refresh_token": s["refresh_token"], "expires_in": s.get("expires_in", 3600)}
+
+
+@r.post("/recuperar", summary="Enviar al correo un código para cambiar la contraseña")
+async def recuperar(d: Recuperar):
+    email = d.email.strip().lower()
+    if email.endswith("@impulsa.demo"):
+        return {"ok": True, "demo": True}
+    # Supabase responde igual exista o no la cuenta, así nadie puede averiguar qué correos están registrados.
+    await sb.pedir("POST", "/auth/v1/recover", json_={"email": email})
+    return {"ok": True}
+
+
+@r.post("/nueva-clave", summary="Cambiar la contraseña con el código recibido por correo")
+async def nueva_clave(d: NuevaClave):
+    email = d.email.strip().lower()
+    try:
+        s = await sb.pedir("POST", "/auth/v1/verify", json_={"type": "recovery", "email": email, "token": d.codigo.strip()})
+    except HTTPException as e:
+        if e.status_code in (400, 401, 403, 422):
+            raise HTTPException(400, "El código no es válido o ya venció. Pide uno nuevo.")
+        raise
+    token = s["access_token"]
+    await sb.pedir("PUT", "/auth/v1/user", token, json_={"password": d.password})
+    return await _entrar(email, d.password)
 
 
 @r.get("/yo", summary="Mi perfil, mi negocio y mis gustos")

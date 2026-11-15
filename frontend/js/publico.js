@@ -119,6 +119,7 @@ ruta('/entrar', async () => {
     <div class="col g10"><h1 class="d2">Hola de nuevo</h1><p class="sua" style="font-size:16px">Entra para ver tus recomendaciones, recordatorios y favoritos.</p></div>
     ${campo('Correo electrónico', 'email', '', { tipo: 'email', req: 1, auto: 'email', ph: 'tucorreo@ejemplo.com' })}
     ${campo('Contraseña', 'password', '', { tipo: 'password', req: 1, auto: 'current-password', ph: '••••••••' })}
+    <div class="row entre"><span></span><a class="peq neg" style="color:var(--brasa)" href="#/recuperar">¿Olvidaste tu contraseña?</a></div>
     <div data-error></div>
     <button class="btn btn-p btn-b">Iniciar sesión</button>
     <div class="row g12"><i class="crece" style="height:1px;background:var(--sand)"></i><span class="peq sua">o prueba con una cuenta de demostración</span><i class="crece" style="height:1px;background:var(--sand)"></i></div>
@@ -128,6 +129,46 @@ ruta('/entrar', async () => {
 });
 formularios.login = async (f, d) => { await entrar('/auth/login', d); ir(destino()); };
 acciones.demo = async el => { await entrar('/auth/login', { email: el.dataset.u + '@impulsa.demo', password: 'Impulsa2026' }); ir(destino()); };
+
+// ---------- recuperar contraseña
+ruta('/recuperar', async (_, q) => {
+  if (estado.yo) return ir(destino());
+  const email = q.get('email') || '';
+  const paso2 = q.get('paso') === '2';
+  const lado = ladoFoto('“Se me olvidó la clave y en un minuto ya estaba de vuelta.”', 'Camila R. · clienta de Impulsa');
+  if (!paso2) return `<div class="auth">${lado}
+  <form class="forma" data-f="recuperar" style="max-width:640px">
+    <a class="row g8 peq neg sua" href="#/entrar">${ic('back')}Volver a iniciar sesión</a>
+    <div class="col g10"><h1 class="d2">Recupera tu contraseña</h1><p class="sua" style="font-size:16px">Escribe el correo con el que te registraste. Te enviamos un código de 6 dígitos para crear una contraseña nueva.</p></div>
+    ${campo('Correo electrónico', 'email', email, { tipo: 'email', req: 1, auto: 'email', ph: 'tucorreo@ejemplo.com' })}
+    <div data-error></div>
+    <button class="btn btn-p btn-b">Enviarme el código</button>
+    <p class="centro sua peq">Las cuentas de demostración no usan este paso.</p>
+  </form></div>`;
+  return `<div class="auth">${lado}
+  <form class="forma" data-f="nuevaClave" style="max-width:640px">
+    <a class="row g8 peq neg sua" href="#/recuperar?email=${encodeURIComponent(email)}">${ic('back')}Pedir otro código</a>
+    <div class="col g10"><h1 class="d2">Revisa tu correo</h1><p class="sua" style="font-size:16px">Enviamos un código a <b style="color:var(--ink)">${esc(email)}</b>. Si no lo ves, mira en la carpeta de spam. Vence en una hora.</p></div>
+    <input type="hidden" name="email" value="${esc(email)}">
+    ${campo('Código de 6 dígitos', 'codigo', '', { req: 1, modo: 'numeric', ph: '123456', auto: 'one-time-code', minlength: 6 })}
+    ${campo('Contraseña nueva', 'password', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password', ph: 'Mínimo 8 caracteres' })}
+    ${campo('Repite la contraseña', 'password2', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password', ph: '••••••••' })}
+    <div data-error></div>
+    <button class="btn btn-p btn-b">Cambiar contraseña y entrar</button>
+  </form></div>`;
+});
+formularios.recuperar = async (f, d) => {
+  const r = await api('/auth/recuperar', { metodo: 'POST', cuerpo: { email: d.email } });
+  if (r.demo) throw new Error('Las cuentas de demostración entran con el botón de la pantalla anterior.');
+  avisar('Si el correo está registrado, el código va en camino');
+  ir('#/recuperar?paso=2&email=' + encodeURIComponent(d.email.trim()));
+};
+formularios.nuevaClave = async (f, d) => {
+  if (d.password !== d.password2) throw new Error('Las contraseñas no coinciden');
+  await entrar('/auth/nueva-clave', { email: d.email, codigo: d.codigo.trim(), password: d.password });
+  avisar('Contraseña cambiada. Bienvenido de nuevo');
+  ir(destino());
+};
 
 // ---------- registro
 const pasos = (lista, activo, titulo) => `<aside class="lado">${logo(true)}<div class="col g8"><span class="min" style="letter-spacing:.1em;color:var(--oro)">${titulo}</span>
