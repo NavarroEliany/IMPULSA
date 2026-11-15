@@ -198,7 +198,9 @@ button.chip{cursor:pointer;transition:border-color .15s}button.chip.borde:hover{
   .panel{grid-template-columns:1fr}.lateral{position:static;height:auto;padding:16px}.lateral nav{display:flex;overflow:auto;gap:4px}.lateral nav a{white-space:nowrap}.lateral .solo-g{display:none}
   .principal{padding:24px 20px 56px}.filtros{display:none}.dos{flex-direction:column}.dos>*{width:100%!important}
 }
+.caja-cta{border-radius:40px;padding:clamp(24px,5vw,56px)}.caja-temp{border-radius:36px;padding:clamp(22px,4vw,44px)}
 @media(max-width:640px){
+  .caja-cta,.caja-temp{border-radius:28px;gap:28px}.caja-cta .d2{font-size:clamp(28px,8.5vw,34px)}
   .c2,.c3{grid-template-columns:1fr}.c6{grid-template-columns:repeat(2,1fr)}.c4{grid-template-columns:repeat(2,1fr);gap:12px}.sec{padding-top:48px;padding-bottom:48px}
   .barra-ia{flex-wrap:wrap;padding:14px}.barra-ia input{flex-basis:70%}.barra-ia .btn{width:100%}.nav .btn-s{padding-left:14px;padding-right:14px}
   .nav .logo .w{display:none}.mejor{grid-template-columns:1fr}.mejor .foto{aspect-ratio:16/9}.dia{min-height:64px;padding:5px}.ev{font-size:9px;padding:2px 4px}.cal{gap:4px}

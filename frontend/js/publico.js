@@ -90,13 +90,13 @@ ruta('/', async () => {
     <div class="grid c3">${d.emprendimientos.slice(0, 3).map(tarjetaNegocio).join('')}</div>
   </section>
 
-  ${d.temporada?.length ? `<section class="wrap" style="padding-bottom:72px"><div class="row g32 envuelve" style="background:var(--brasa);border-radius:36px;padding:44px;color:#fff">
+  ${d.temporada?.length ? `<section class="wrap" style="padding-bottom:72px"><div class="row g32 envuelve caja-temp" style="background:var(--brasa);color:#fff">
     <div class="col g20 crece ini" style="min-width:280px"><span class="chip brasa" style="background:#fff">${ic('gift')}Temporada navideña</span>
       <h2 class="d2">Navidad está a ${navidad} días.</h2><p style="opacity:.92;line-height:1.55;max-width:380px">Activa tu calendario y te avisamos con ideas de regalo de emprendedores de tu ciudad, según tu presupuesto.</p>
       <a class="btn btn-d" href="#/registro">Activar recordatorios</a></div>
     <div class="grid c3" style="flex:2;min-width:300px;color:var(--ink)">${d.temporada.map(p => tarjetaProducto(p)).join('')}</div></div></section>` : ''}
 
-  <section class="wrap" style="padding-bottom:96px"><div class="row g48 envuelve" style="background:var(--ink);border-radius:40px;padding:56px;color:var(--cream)">
+  <section class="wrap" style="padding-bottom:96px"><div class="row g48 envuelve caja-cta" style="background:var(--ink);color:var(--cream)">
     <div class="col g24 crece ini" style="min-width:300px"><span class="chip orof" style="color:var(--ink)">${ic('store')}Para emprendedores</span>
       <h2 class="d2">Tu emprendimiento merece <span class="serif" style="color:var(--oro);font-size:1.1em">más que tus seguidores.</span></h2>
       ${['Vitrina profesional con fotos, precios, ubicación y redes', 'Estadísticas: qué vendes más, qué días y en qué fechas', 'La IA te recomienda a clientes que ya buscan lo que haces'].map(t => `<div class="row g12"><span class="redondo" style="width:26px;height:26px;background:var(--brasa);border:0">${ic('check', '#fff', 'width:14px;height:14px')}</span>${t}</div>`).join('')}
