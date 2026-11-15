@@ -24,7 +24,7 @@ Para el emprendedor:
 |---|---|---|
 | Frontend | HTML, CSS y JavaScript en módulos, sin paso de compilación | `frontend/` |
 | Backend | Python 3.12 con FastAPI | `backend/` |
-| Base de datos, cuentas y fotos | Supabase (Postgres, Auth, Storage) | `supabase/` |
+| Base de datos, cuentas y fotos | Supabase (Postgres, Auth, Storage) | proyecto `Impulsa` en Supabase |
 | Despliegue | Render, plan gratis | `render.yaml` |
 
 FastAPI sirve la API en `/api` y también los archivos del frontend, así que todo queda en una sola dirección. La documentación interactiva de la API está en `/api/docs`.
