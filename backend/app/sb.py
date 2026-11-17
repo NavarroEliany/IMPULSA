@@ -95,7 +95,7 @@ async def borrar(tabla: str, filtros: dict, token: str) -> None:
 
 async def subir(bucket: str, ruta: str, datos: bytes, tipo: str, token: str) -> None:
     await pedir("POST", f"/storage/v1/object/{bucket}/{ruta}", token, contenido=datos,
-                cabeceras={"Content-Type": tipo, "x-upsert": "true"})
+                cabeceras={"Content-Type": tipo, "Cache-Control": "max-age=31536000"})
 
 
 # ---------- dependencias de autenticación
