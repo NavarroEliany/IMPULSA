@@ -48,6 +48,8 @@ async def pedir(metodo: str, ruta: str, token: Optional[str] = None, *, params: 
         msg = d.get("message") or d.get("msg") or d.get("error_description") or d.get("error") or "Ocurrió un error"
         if "JWT" in str(msg) or r.status_code == 401:
             raise HTTPException(401, "Tu sesión venció. Inicia sesión de nuevo.")
+        if "banned" in str(msg).lower():
+            raise HTTPException(403, "Tu cuenta está suspendida. Escríbenos si crees que es un error.")
         if "Invalid login credentials" in str(msg):
             raise HTTPException(400, "Correo o contraseña incorrectos")
         raise HTTPException(r.status_code if r.status_code in (400, 403, 404, 409, 422) else 502, str(msg))

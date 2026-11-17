@@ -1,7 +1,7 @@
 // Panel del emprendedor: estadísticas, productos, contactos, reseñas, promociones y datos del negocio.
 import { api, estado, cargarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
-import { ic, esc, pesos, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir } from './ui.js';
+import { ic, esc, pesos, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir, tarjetaCatalogo } from './ui.js';
 
 const OCASIONES = ['Cumpleaños', 'Aniversario', 'Amor y Amistad', 'Día de la Madre', 'Día del Padre', 'Navidad', 'Halloween', 'Grados', 'Para ella', 'Para él', 'Regalo corporativo'];
 const PAGOS = ['Nequi', 'Daviplata', 'Transferencia Bancolombia', 'Efectivo', 'Tarjeta', 'Llave Bre-B'];
@@ -23,7 +23,7 @@ function marco(activo, html) {
   return `<div class="panel"><aside class="lateral">${logo(true, '#/panel')}
     ${n ? `<a class="row g12 solo-g" style="background:rgba(255,255,255,.06);padding:12px;border-radius:18px" href="#/negocio/${n.slug}"><div class="logo-n" style="width:42px;height:42px;border-radius:12px;font-size:15px;background:var(--oro) center/cover;color:var(--ink);${n.logo_url ? `background-image:url('${esc(n.logo_url)}')` : ''}">${n.logo_url ? '' : iniciales(n.nombre)}</div>
       <div class="crece"><b style="color:var(--cream);font-size:14px">${esc(n.nombre)}</b><div class="min row g4" style="color:var(--oro)">Ver perfil público ${ic('ext', 'currentColor', 'width:11px;height:11px')}</div></div></a>` : ''}
-    <nav class="col" style="gap:2px">${n ? en('#/panel', 'home', 'Resumen') + en('#/panel/productos', 'pkg', 'Productos') + en('#/panel/pedidos', 'msg', 'Contactos y pedidos') + en('#/panel/resenas', 'staro', 'Reseñas') + en('#/panel/promociones', 'tag', 'Promociones') : ''}
+    <nav class="col" style="gap:2px">${n ? en('#/panel', 'home', 'Resumen') + en('#/panel/productos', 'pkg', 'Productos') + en('#/panel/catalogos', 'book', 'Catálogos') + en('#/panel/pedidos', 'msg', 'Contactos y pedidos') + en('#/panel/resenas', 'staro', 'Reseñas') + en('#/panel/promociones', 'tag', 'Promociones') : ''}
       ${en('#/panel/negocio', 'store', 'Perfil del negocio')}<a href="#/buscar">${ic('compass')}<span>Ver Impulsa</span></a></nav>
     <div class="crece solo-g"></div>
     <div class="col g10 solo-g" style="background:var(--oro);color:var(--ink);padding:18px;border-radius:20px"><span class="chip tinta" style="color:var(--oro);align-self:flex-start">${ic('spark')}Consejo</span>
@@ -195,6 +195,63 @@ ruta('/panel/promociones', async () => {
 });
 formularios.promo = async (f, d) => { await api('/panel/promociones', { metodo: 'POST', cuerpo: { ...d, producto_id: d.producto_id || null, dias: Number(d.dias) } }); avisar('Promoción publicada. Ya avisamos a tus clientes'); nucleo.repintar(); };
 acciones['borrar-promo'] = async el => { await api('/panel/promociones/' + el.dataset.id, { metodo: 'DELETE' }); avisar('Promoción eliminada'); nucleo.repintar(); };
+
+// ---------- catálogos ya hechos (PDF, imagen o enlace de Canva, Drive…)
+let modoCat = 'archivo';
+ruta('/panel/catalogos', async () => {
+  if (!permitido()) return null;
+  const lista = await api('/panel/catalogos');
+  const archivo = modoCat === 'archivo';
+  return marco('#/panel/catalogos', `${titulo('Catálogos', 'Sube los catálogos que ya tienes hechos. Aparecen en tu perfil público para que los clientes los vean o descarguen.')}
+    <div class="row ini g20 dos">
+      <form class="card col g16" data-f="catalogo" style="width:420px;flex:none">
+        <h3 class="d4">Agregar un catálogo</h3>
+        <div class="seg"><button type="button" class="${archivo ? 'on' : ''}" data-a="modo-cat" data-m="archivo">${ic('upload')}Subir archivo</button><button type="button" class="${archivo ? '' : 'on'}" data-a="modo-cat" data-m="enlace">${ic('link')}Pegar enlace</button></div>
+        ${campo('Nombre del catálogo', 'titulo', '', { req: 1, ph: 'Catálogo de Navidad 2026' })}
+        ${archivo ? `<label class="zona-sube" id="zona-cat"><input type="file" name="archivo" accept="application/pdf,image/jpeg,image/png,image/webp" data-cat required>
+            <span class="cat-ic">${ic('upload', 'var(--brasa)')}</span><b id="nombre-cat">Elige un PDF o una imagen</b><span class="min sua">Hasta 20 MB</span></label>
+          <small class="sua">¿Lo hiciste en Canva? Ve a <b>Compartir → Descargar → PDF estándar</b> y súbelo aquí.</small>`
+          : `${campo('Enlace del catálogo', 'url', '', { tipo: 'url', req: 1, ph: 'https://www.canva.com/design/…/view', ayuda: 'Canva: Compartir → Ver solo → Copiar enlace. También sirven Google Drive, Dropbox o tu tienda en línea.' })}`}
+        <div data-error></div>
+        <button class="btn btn-p">${ic('plus', '#fff')}Publicar catálogo</button>
+      </form>
+      <div class="col g16 crece">
+        <div class="row entre"><h3 class="d4">Tus catálogos</h3><span class="sua peq">${lista.length} de 12</span></div>
+        ${lista.length ? `<div class="cat-grid">${lista.map(c => tarjetaCatalogo(c, true)).join('')}</div>`
+          : vacio('📚', 'Aún no tienes catálogos', 'Sube el PDF de tu catálogo o pega el enlace de Canva. Tus clientes lo verán en tu perfil junto a tus productos.')}
+      </div></div>`);
+});
+acciones['modo-cat'] = el => { modoCat = el.dataset.m; nucleo.repintar(); };
+document.addEventListener('change', ev => {
+  const inp = ev.target.closest('input[data-cat]');
+  if (!inp) return;
+  const f = inp.files[0], zona = document.getElementById('zona-cat');
+  document.getElementById('nombre-cat').textContent = f ? `${f.name} · ${(f.size / 1048576).toFixed(1).replace('.', ',')} MB` : 'Elige un PDF o una imagen';
+  zona.classList.toggle('lleno', !!f);
+  const t = inp.form.querySelector('[name="titulo"]');
+  if (f && !t.value) t.value = f.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').slice(0, 80);
+});
+formularios.catalogo = async (f, d) => {
+  const boton = f.querySelector('button:not([type])');
+  let url = (d.url || '').trim(), tipo = 'enlace';
+  if (modoCat === 'archivo') {
+    let archivo = f.querySelector('input[data-cat]').files[0];
+    if (!archivo) throw new Error('Elige el archivo del catálogo');
+    if (archivo.size > 20 * 1048576) throw new Error('El archivo pesa más de 20 MB. Desde Canva descárgalo como «PDF estándar».');
+    if (archivo.type.startsWith('image/') && archivo.size > 4 * 1048576) archivo = await comprimir(archivo, 2400);
+    const antes = boton.innerHTML; boton.innerHTML = 'Subiendo…';
+    try { const r = await api('/panel/catalogos/archivo', { metodo: 'POST', archivo }); url = r.url; tipo = r.tipo; }
+    finally { boton.innerHTML = antes; }
+  } else if (!/^https:\/\//i.test(url)) throw new Error('El enlace debe empezar por https://');
+  await api('/panel/catalogos', { metodo: 'POST', cuerpo: { titulo: d.titulo.trim(), tipo, url } });
+  avisar('Catálogo publicado en tu perfil');
+  nucleo.repintar();
+};
+acciones['borrar-cat'] = async el => {
+  if (!confirm('¿Quitar este catálogo de tu perfil?')) return;
+  await api('/panel/catalogos/' + el.dataset.id, { metodo: 'DELETE' });
+  avisar('Catálogo quitado'); nucleo.repintar();
+};
 
 // ---------- perfil del negocio (registro y edición)
 ruta('/panel/negocio', async () => {

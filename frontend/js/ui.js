@@ -20,6 +20,14 @@ const L = {
   tt: '<path d="M9 12a4 4 0 1 0 4 4V2a5 5 0 0 0 5 5"/>', fb: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
   trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', salir: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   up: '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>', eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M8 13h8M8 17h5"/>',
+  book: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  mega: '<path d="m3 11 18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6"/>', key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   ext: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', staro: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>',
 };
 const F = {
@@ -96,6 +104,25 @@ export function tarjetaNegocio(e) {
         ${e.instagram ? `<a class="redondo" target="_blank" rel="noopener" href="https://instagram.com/${esc(e.instagram)}" aria-label="Instagram">${ic('ig')}</a>` : ''}
         ${e.tiktok ? `<a class="redondo" target="_blank" rel="noopener" href="https://tiktok.com/@${esc(e.tiktok)}" aria-label="TikTok">${ic('tt')}</a>` : ''}</div>
     </div></div>`;
+}
+
+// Catálogo de un negocio: PDF, imagen o enlace (Canva, Google Drive, etc.).
+const ORIGEN_CAT = [[/canva\.(com|link)/, 'Canva'], [/drive\.google|docs\.google/, 'Google Drive'], [/dropbox/, 'Dropbox'], [/onedrive|sharepoint|1drv/, 'OneDrive'], [/instagram/, 'Instagram'], [/wa\.me|whatsapp/, 'WhatsApp']];
+export function tipoCatalogo(c) {
+  if (c.tipo === 'pdf') return ['PDF', 'file'];
+  if (c.tipo === 'imagen') return ['Imagen', 'camera'];
+  const o = ORIGEN_CAT.find(([re]) => re.test(c.url));
+  let host = ''; try { host = new URL(c.url).hostname.replace('www.', ''); } catch { /* enlace raro */ }
+  return [o ? o[1] : host || 'Enlace', 'link'];
+}
+export function tarjetaCatalogo(c, borrar = false) {
+  const [etq, icono] = tipoCatalogo(c);
+  const vista = c.tipo === 'imagen' ? `style="background-image:url('${esc(c.url)}')"` : '';
+  return `<div class="cat-card"><a class="cat-vista ${c.tipo}" href="${esc(c.url)}" target="_blank" rel="noopener" ${vista} aria-label="Abrir ${esc(c.titulo)}">
+      ${c.tipo === 'imagen' ? '' : `<span class="cat-ic">${ic(icono, 'currentColor')}</span><b>${esc(etq)}</b>`}</a>
+    <div class="row g8" style="padding:14px 16px"><div class="crece"><b style="font-size:15px">${esc(c.titulo)}</b><div class="min sua">${esc(etq)} · ${hace(c.creado_en)}</div></div>
+      ${borrar ? `<button class="redondo" style="width:36px;height:36px" data-a="borrar-cat" data-id="${c.id}" aria-label="Quitar catálogo">${ic('trash')}</button>`
+        : `<a class="btn btn-g btn-s" href="${esc(c.url)}" target="_blank" rel="noopener">${ic('ext')}Ver</a>`}</div></div>`;
 }
 
 export function avisar(texto, mal = false) {

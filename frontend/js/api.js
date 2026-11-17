@@ -45,8 +45,8 @@ export async function api(ruta, { metodo = 'GET', cuerpo, archivo } = {}, reinte
 
 function aplicar(d) { estado.yo = { perfil: d.perfil, negocio: d.negocio, gustos: d.gustos || [], sin_leer: d.sin_leer || 0 }; }
 
-export async function entrar(ruta, datos) {
-  const d = await api(ruta, { metodo: 'POST', cuerpo: datos });
+export async function entrar(ruta, datos, metodo = 'POST') {
+  const d = await api(ruta, { metodo, cuerpo: datos });
   guardar({ access_token: d.access_token, refresh_token: d.refresh_token });
   aplicar(d);
   await cargarFavs();

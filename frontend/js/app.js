@@ -5,6 +5,7 @@ import { ic, esc, logo, avisar, abrirCapa, cerrarCapa, hace, iniciales, datosDe 
 import './publico.js';
 import './cliente.js';
 import './panel.js';
+import './admin.js';
 import './accesibilidad.js';
 
 const app = document.getElementById('app');
@@ -16,15 +17,15 @@ export function navPublica() {
     <a class="btn btn-g btn-s" href="#/entrar">Iniciar sesión</a><a class="btn btn-d btn-s" href="#/registro">Crear cuenta</a></header>`;
 }
 export function navApp(q = '') {
-  const y = estado.yo, p = y.perfil, es = p.rol === 'emprendedor', h = location.hash;
+  const y = estado.yo, p = y.perfil, es = p.rol === 'emprendedor', ad = p.rol === 'admin', h = location.hash;
   const en = (ruta, icono, texto) => `<a href="${ruta}" class="${h.startsWith(ruta) ? 'on' : ''}">${ic(icono)}<span>${texto}</span></a>`;
-  return `<header class="nav">${logo(false, es ? '#/panel' : '#/inicio')}
+  return `<header class="nav">${logo(false, ad ? '#/admin' : es ? '#/panel' : '#/inicio')}
     <form class="buscador" data-f="buscar">${ic('spark', '#F4B73F')}<input name="q" value="${esc(q)}" placeholder="Pregúntale a Impulsa: “torta para 15 personas el sábado”…" autocomplete="off"><button aria-label="Buscar">${ic('arrow', '#fff')}</button></form>
-    <nav class="enlaces">${en('#/buscar', 'compass', 'Explorar')}${es ? en('#/panel', 'chart', 'Mi panel') : en('#/calendario', 'cal', 'Calendario') + en('#/favoritos', 'heart', 'Favoritos')}</nav>
+    <nav class="enlaces">${en('#/buscar', 'compass', 'Explorar')}${ad ? en('#/admin', 'shield', 'Administración') : es ? en('#/panel', 'chart', 'Mi panel') : en('#/calendario', 'cal', 'Calendario') + en('#/favoritos', 'heart', 'Favoritos')}</nav>
     <button class="redondo" data-a="notis" aria-label="Notificaciones">${ic('bell')}${y.sin_leer ? `<span class="punto">${y.sin_leer}</span>` : ''}</button>
     <div style="position:relative"><button class="avatar" data-a="menu" style="${p.avatar_url ? `background-image:url('${esc(p.avatar_url)}')` : ''}">${p.avatar_url ? '' : iniciales(p.nombre + ' ' + p.apellido)}</button>
       <div class="menu oculto" id="menu"><div style="padding:10px 12px"><b>${esc(p.nombre)} ${esc(p.apellido)}</b><div class="min sua">${esc(p.email)}</div></div>
-      ${es ? `<a href="#/panel">${ic('chart')}Mi panel</a><a href="#/panel/negocio">${ic('store')}Mi negocio</a>` : `<a href="#/perfil">${ic('user')}Mi perfil y gustos</a><a href="#/calendario">${ic('cal')}Mi calendario</a>`}
+      ${ad ? `<a href="#/admin">${ic('shield')}Administración</a><a href="#/admin/cuenta">${ic('key')}Mi cuenta</a>` : es ? `<a href="#/panel">${ic('chart')}Mi panel</a><a href="#/panel/negocio">${ic('store')}Mi negocio</a>` : `<a href="#/perfil">${ic('user')}Mi perfil y gustos</a><a href="#/calendario">${ic('cal')}Mi calendario</a>`}
       <button data-a="salir">${ic('salir')}Cerrar sesión</button></div></div></header>`;
 }
 export const conNav = (html, q) => (estado.yo ? navApp(q) : navPublica()) + html;

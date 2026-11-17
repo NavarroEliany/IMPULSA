@@ -103,6 +103,13 @@ async def negocio(slug: str, token: Optional[str] = Depends(sb.token_opcional)):
     d = await sb.rpc("detalle_emprendimiento", token, p_slug=slug)
     if not d:
         raise HTTPException(404, "Emprendimiento no encontrado")
+    e = d.get("emprendimiento") or {}
+    if e.get("activo") is False:
+        uid = sb.uid_opcional(token)
+        puede = uid and (uid == e.get("propietario_id") or await sb.rpc("es_admin", token))
+        if not puede:
+            raise HTTPException(404, "Este emprendimiento no está disponible en este momento")
+    d["catalogos"] = await sb.leer("catalogos", token, emprendimiento_id=f"eq.{e.get('id')}", order="orden.asc,creado_en.desc")
     return d
 
 

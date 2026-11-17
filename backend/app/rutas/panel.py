@@ -54,6 +54,12 @@ class Producto(BaseModel):
     activo: bool = True
 
 
+class Catalogo(BaseModel):
+    titulo: str = Field(min_length=2, max_length=80)
+    tipo: str = Field(pattern="^(pdf|imagen|enlace)$")
+    url: str = Field(pattern="^https://", max_length=600)
+
+
 class CambioProducto(BaseModel):
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
@@ -281,3 +287,48 @@ async def subir_imagen(archivo: UploadFile = File(...), token: str = Depends(sb.
 @r.post("/ia/descripcion", summary="Redactar la descripción de un producto con IA")
 async def descripcion_ia(d: IdeaDescripcion, token: str = Depends(sb.token_requerido)):
     return await ia.redactar_descripcion(d.nombre.strip()[:120], d.categoria[:60], d.detalles[:400])
+
+
+# ---------- catálogos (PDF, imagen o enlace de Canva, Drive, etc.)
+_CATALOGO = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+
+
+@r.get("/catalogos", summary="Mis catálogos")
+async def mis_catalogos(token: str = Depends(sb.token_requerido)):
+    n = await mi_negocio(token)
+    return await sb.leer("catalogos", token, emprendimiento_id=f"eq.{n['id']}", order="orden.asc,creado_en.desc")
+
+
+@r.post("/catalogos/archivo", summary="Subir el archivo de un catálogo (PDF o imagen, hasta 20 MB)")
+async def subir_catalogo(archivo: UploadFile = File(...), token: str = Depends(sb.token_requerido)):
+    await mi_negocio(token)
+    tipo = archivo.content_type
+    datos = await archivo.read()
+    if tipo not in _CATALOGO and datos[:5] == b"%PDF-":
+        tipo = "application/pdf"
+    if tipo not in _CATALOGO:
+        raise HTTPException(400, "Sube un PDF o una imagen (JPG, PNG o WebP)")
+    if tipo == "application/pdf" and datos[:5] != b"%PDF-":
+        raise HTTPException(400, "Ese archivo no es un PDF válido")
+    if len(datos) > 20 * 1024 * 1024:
+        raise HTTPException(400, "El archivo pesa más de 20 MB. Desde Canva puedes descargarlo como «PDF estándar» para que pese menos.")
+    ruta = f"{sb.uid_de(token)}/catalogos/{uuid.uuid4().hex}.{_CATALOGO[tipo]}"
+    await sb.subir(BUCKET, ruta, datos, tipo, token)
+    return {"url": f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{ruta}",
+            "tipo": "pdf" if tipo == "application/pdf" else "imagen", "peso": len(datos)}
+
+
+@r.post("/catalogos", summary="Publicar un catálogo")
+async def crear_catalogo(d: Catalogo, token: str = Depends(sb.token_requerido)):
+    n = await mi_negocio(token)
+    ya = await sb.leer("catalogos", token, select="id", emprendimiento_id=f"eq.{n['id']}")
+    if len(ya) >= 12:
+        raise HTTPException(400, "Puedes tener hasta 12 catálogos. Borra uno viejo para subir otro.")
+    return await sb.crear("catalogos", {"emprendimiento_id": n["id"], "titulo": d.titulo.strip(), "tipo": d.tipo,
+                                        "url": d.url.strip(), "orden": len(ya)}, token)
+
+
+@r.delete("/catalogos/{catalogo_id}", summary="Quitar un catálogo")
+async def borrar_catalogo(catalogo_id: str, token: str = Depends(sb.token_requerido)):
+    await sb.borrar("catalogos", {"id": f"eq.{catalogo_id}"}, token)
+    return {"ok": True}

@@ -30,6 +30,11 @@ class Refresco(BaseModel):
     refresh_token: str
 
 
+class CambioClave(BaseModel):
+    actual: str
+    nueva: str = Field(min_length=8)
+
+
 class Recuperar(BaseModel):
     email: str
 
@@ -117,6 +122,19 @@ async def nueva_clave(d: NuevaClave):
     token = s["access_token"]
     await sb.pedir("PUT", "/auth/v1/user", token, json_={"password": d.password})
     return await _entrar(email, d.password)
+
+
+@r.put("/clave", summary="Cambiar mi contraseña (pide la actual)")
+async def cambiar_clave(d: CambioClave, token: str = Depends(sb.token_requerido)):
+    perfil = await sb.uno("perfiles", token, id=f"eq.{sb.uid_de(token)}", select="email")
+    if not perfil:
+        raise HTTPException(401, "Inicia sesión de nuevo")
+    try:
+        await _entrar(perfil["email"], d.actual)
+    except HTTPException:
+        raise HTTPException(400, "La contraseña actual no es correcta")
+    await sb.pedir("PUT", "/auth/v1/user", token, json_={"password": d.nueva})
+    return await _entrar(perfil["email"], d.nueva)
 
 
 @r.get("/yo", summary="Mi perfil, mi negocio y mis gustos")

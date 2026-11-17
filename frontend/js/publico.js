@@ -5,7 +5,7 @@ import { ic, esc, pesos, num, logo, tarjetaProducto, tarjetaNegocio, campo, avis
 import { navPublica } from './app.js';
 
 const IMG = 'https://jiwzobnrcztxthtiydin.supabase.co/storage/v1/object/public/impulsa/seed/';
-const destino = () => !estado.yo ? '#/' : estado.yo.perfil.rol === 'emprendedor' ? (estado.yo.negocio ? '#/panel' : '#/panel/negocio')
+const destino = () => !estado.yo ? '#/' : estado.yo.perfil.rol === 'admin' ? '#/admin' : estado.yo.perfil.rol === 'emprendedor' ? (estado.yo.negocio ? '#/panel' : '#/panel/negocio')
   : (estado.yo.perfil.onboarding_completo ? '#/inicio' : '#/gustos');
 
 const pie = () => `<footer class="pie"><div class="wrap col g48"><div class="row entre ini envuelve g32">
@@ -123,7 +123,7 @@ ruta('/entrar', async () => {
     <div data-error></div>
     <button class="btn btn-p btn-b">Iniciar sesión</button>
     <div class="row g12"><i class="crece" style="height:1px;background:var(--sand)"></i><span class="peq sua">o prueba con una cuenta de demostración</span><i class="crece" style="height:1px;background:var(--sand)"></i></div>
-    <div class="row g12 fila-f"><button type="button" class="btn btn-g crece" data-a="demo" data-u="laura">${ic('bag')}Entrar como clienta</button><button type="button" class="btn btn-g crece" data-a="demo" data-u="gloria">${ic('store')}Entrar como emprendedora</button></div>
+    <div class="row g12 fila-f"><button type="button" class="btn btn-g crece" data-a="demo" data-u="laura">${ic('bag')}Entrar como cliente</button><button type="button" class="btn btn-g crece" data-a="demo" data-u="gloria">${ic('store')}Entrar como negocio / emprendimiento</button></div>
     <p class="centro sua">¿Aún no tienes cuenta? <a class="neg" style="color:var(--brasa)" href="#/registro">Créala gratis</a></p>
   </form></div>`;
 });

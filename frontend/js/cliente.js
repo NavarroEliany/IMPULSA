@@ -2,7 +2,7 @@
 import { api, estado, actualizarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
 import { ic, esc, pesos, num, fecha, fechaCorta, hace, enDias, mesN, iniciales, foto, fondo, mini, estrellas, tarjetaProducto, tarjetaNegocio,
-  avisar, abrirCapa, cerrarCapa, vacio, campo } from './ui.js';
+  avisar, abrirCapa, cerrarCapa, vacio, campo, tarjetaCatalogo } from './ui.js';
 import { conNav } from './app.js';
 import { formularioGustos, pie } from './publico.js';
 
@@ -133,6 +133,8 @@ ruta('/negocio/([^/]+)', async ([slug]) => {
     </section>
     <section class="row ini g24 dos">
       <div class="col g24 crece">
+        ${d.catalogos?.length ? `<div class="col g16"><div class="row entre envuelve g12"><h2 class="d3" style="font-size:28px">Catálogos</h2><span class="sua">Míralos o descárgalos</span></div>
+          <div class="cat-grid">${d.catalogos.map(c => tarjetaCatalogo(c)).join('')}</div></div>` : ''}
         <div class="row entre envuelve g12"><h2 class="d3" style="font-size:28px">Productos y servicios</h2><span class="sua">${d.productos.length} publicados</span></div>
         ${d.productos.length ? `<div class="grid c3">${d.productos.map(p => tarjetaProducto(p)).join('')}</div>` : vacio('📦', 'Aún no hay productos', 'Este emprendimiento está preparando su vitrina. Escríbele por WhatsApp.')}
         <div class="card col g20" id="resenas" style="border-radius:28px;padding:28px"><h2 class="d4" style="font-size:26px">Lo que dicen los clientes</h2>

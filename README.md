@@ -17,6 +17,17 @@ Para el emprendedor:
 - Inventario de productos y servicios con fotos, stock y ocasiones.
 - Estadísticas: ventas por mes, meses pico, días y horas en que le escriben, productos más pedidos y origen de los contactos.
 - Promociones, respuesta a reseñas y consejos calculados con sus propios datos.
+- Catálogos ya hechos: sube un PDF o una imagen (hasta 20 MB) o pega el enlace de Canva, Google Drive o Dropbox. Se muestran en su perfil público.
+
+Para el administrador (`#/admin`):
+
+- Resumen de la plataforma: usuarios, negocios, contactos por mes, negocios con más contactos, lo que más busca la gente y pendientes por revisar.
+- Usuarios: buscar, cambiar el rol (cliente, negocio o administrador) y suspender o reactivar cuentas. Una cuenta suspendida no puede entrar y su negocio se oculta.
+- Negocios: verificar (la insignia) y ocultar o volver a mostrar.
+- Productos: destacar en la portada u ocultar.
+- Reseñas: filtrar las de pocas estrellas y eliminar las ofensivas o falsas.
+- Categorías y fechas comerciales sugeridas del calendario.
+- Anuncios: una notificación a todos los clientes, a todos los negocios o a ambos.
 
 ## Cómo está armado
 
@@ -52,6 +63,8 @@ La contraseña de todas es `Impulsa2026`.
 
 La pantalla de inicio de sesión tiene dos botones que entran con estas cuentas.
 
+La cuenta de administrador es `admin@impulsa.demo` y su contraseña no está en el repositorio. Nadie puede volverse administrador por su cuenta: el rol solo lo cambia otro administrador desde `#/admin/usuarios`, y la base de datos rechaza cualquier intento de cambiarse el rol, autoverificarse o reactivar un negocio suspendido.
+
 ## Desplegar en Render
 
 1. Entrar a https://render.com/deploy?repo=https://github.com/NavarroEliany/IMPULSA con la cuenta de GitHub.
@@ -70,6 +83,6 @@ Abre http://localhost:8000.
 
 ## Base de datos
 
-Tiene 18 tablas con RLS activo. Las principales son `perfiles`, `emprendimientos`, `productos`, `pedidos`, `resenas`, `fechas_importantes`, `promociones`, `alertas_stock` y `notificaciones`. Viene con 14 emprendimientos, 54 productos, 140 reseñas y un año de contactos para que las estadísticas tengan contenido.
+Tiene 19 tablas con RLS activo. Las principales son `perfiles`, `emprendimientos`, `productos`, `pedidos`, `resenas`, `fechas_importantes`, `promociones`, `alertas_stock` y `notificaciones`. Viene con 14 emprendimientos, 54 productos, 140 reseñas y un año de contactos para que las estadísticas tengan contenido.
 
-Las migraciones (`impulsa_01_esquema` a `impulsa_04_ajustes`) están en el historial del proyecto de Supabase, en Database → Migrations.
+Las migraciones (`impulsa_01_esquema` a `impulsa_06_corregir_proteccion_roles`) están en el historial del proyecto de Supabase, en Database → Migrations.

@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import sb
 from .config import URL_PUBLICA
-from .rutas import auth, cliente, panel, publico
+from .rutas import admin, auth, cliente, panel, publico
 
 
 @asynccontextmanager
@@ -29,7 +29,7 @@ app = FastAPI(title="Impulsa API", version="1.0.0", lifespan=ciclo, docs_url="/a
 app.add_middleware(GZipMiddleware, minimum_size=800)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-for modulo in (publico, auth, cliente, panel):
+for modulo in (publico, auth, cliente, panel, admin):
     app.include_router(modulo.r)
 
 
