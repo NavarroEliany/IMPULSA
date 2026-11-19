@@ -254,7 +254,7 @@ button.chip{cursor:pointer;transition:border-color .15s}button.chip.borde:hover{
 .a11y-enlaces #app :is(a.prod,a.portada){outline:2px dashed var(--brasa);outline-offset:2px}
 .a11y-quieto *,.a11y-quieto *::before,.a11y-quieto *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 .a11y-cursor,.a11y-cursor *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24'%3E%3Cpath d='m4 2 15 8-6.5 2-2.5 7Z' fill='%2316120F' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 7 4,auto!important}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.pulso,.pulso .chispa{animation:none!important}.carga-t,.carga-lento{animation:aparece .01ms linear forwards!important}.carga-lento{animation-delay:6s!important}}
 @media(max-width:1100px){.lateral nav{flex-direction:row!important}.lateral{gap:12px}}
 @media(max-width:640px){#a11y{left:12px;bottom:12px}#a11y-btn{width:50px;height:50px}#avisos{bottom:76px}}
 
