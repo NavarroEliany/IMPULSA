@@ -41,10 +41,10 @@ ruta('/panel/radar', async () => {
   if (!permitido()) return null;
   const d = await api('/panel/radar');
   const maxDia = Math.max(1, ...d.por_dia.map(x => x.n));
-  const maxTop = Math.max(1, ...d.top.map(x => x.n));
+  const maxTop = Math.max(1, ...d.top.map(x => x.n), ...d.sin_oferta.map(x => x.n), ...d.tuyas.map(x => x.n));
   const motor = d.motor === 'gemini' ? 'Gemini' : 'IA de Impulsa';
   const fila = (x, color, extra = '') => `<div class="col g6"><div class="row entre g8 peq"><span class="neg">“${esc(x.consulta)}”</span><b>${x.n}</b></div>
-    <div class="barra" style="height:8px"><i style="width:${Math.round(x.n * 100 / maxTop)}%;background:var(--${color})"></i></div>${extra}</div>`;
+    <div class="barra" style="height:8px;flex:none;width:100%"><i style="width:${Math.round(x.n * 100 / maxTop)}%;background:var(--${color})"></i></div>${extra}</div>`;
   return marco('#/panel/radar', `
     ${titulo(`Radar de <span class="serif">demanda.</span>`, `Lo que buscaron ${d.total.toLocaleString('es-CO')} veces los clientes en Impulsa durante los últimos 30 días`, `<span class="sello-ia">${ic('spark')}${motor}</span>`)}
     <div class="grid c4" style="gap:16px">
@@ -68,7 +68,7 @@ ruta('/panel/radar', async () => {
         ${d.sin_oferta.length ? d.sin_oferta.map(x => fila(x, 'brasa', `<span class="min sua">Última vez ${hace(x.ultima).toLowerCase()}</span>`)).join('') : '<span class="peq sua">Por ahora todo lo que buscan tiene al menos una opción.</span>'}</div>
       <div class="col g16 crece">
         <div class="card col g14"><div><h3 class="d4">Búsquedas donde apareces</h3><span class="peq sua">Tus productos frente a los de la competencia</span></div>
-          ${d.tuyas.length ? d.tuyas.map(x => `<div class="row g12"><div class="crece">${fila(x, 'salvia')}</div><span class="chip ${x.ofertas - x.tuyos > 0 ? 'borde' : 'salvia'}" style="font-size:12px;padding:5px 10px;flex:none">${x.ofertas - x.tuyos > 0 ? `${x.tuyos} tuyos · ${x.ofertas - x.tuyos} más` : 'Sin competencia'}</span></div>`).join('')
+          ${d.tuyas.length ? d.tuyas.map(x => `<div class="row g12"><div class="crece">${fila(x, 'salvia')}</div><span class="chip ${x.ofertas - x.tuyos > 0 ? 'borde' : 'salvia'}" style="font-size:12px;padding:5px 10px;flex:none">${x.ofertas - x.tuyos > 0 ? `${x.tuyos} ${x.tuyos === 1 ? 'tuyo' : 'tuyos'} · ${x.ofertas - x.tuyos} más` : 'Sin competencia'}</span></div>`).join('')
             : '<span class="peq sua">Aún no apareces en las búsquedas más comunes. Revisa el nombre y las etiquetas de tus productos.</span>'}</div>
         <div class="card col g10"><div><h3 class="d4">Subiendo esta semana</h3><span class="peq sua">Comparado con la semana anterior</span></div>
           ${d.subiendo.length ? d.subiendo.map(x => `<div class="row entre peq"><span class="neg">“${esc(x.consulta)}”</span><span class="chip salvia" style="font-size:12px;padding:5px 10px">${ic('up', 'currentColor', 'width:13px;height:13px')}${x.antes} → ${x.n}</span></div>`).join('') : '<span class="peq sua">Sin cambios fuertes esta semana.</span>'}</div>

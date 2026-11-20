@@ -14,7 +14,7 @@ const app = document.getElementById('app');
 // ---------- barras de navegación
 export function navPublica() {
   return `<header class="nav">${logo()}<nav class="enlaces crece" style="justify-content:center">
-    <a href="#/buscar">Explorar</a><a href="#/negocios">Emprendimientos</a><a href="#/armador" class="row g6">${ic('spark', '#EF5A2A')}Armador de regalos</a><a href="#/registro?rol=emprendedor">Para emprendedores</a></nav>
+    <a href="#/buscar">Explorar</a><a href="#/negocios">Emprendimientos</a><a href="#/armador">${ic('spark', '#EF5A2A', 'width:14px;height:14px;vertical-align:-2px')}<span>Armador de regalos</span></a><a href="#/registro?rol=emprendedor">Para emprendedores</a></nav>
     <a class="btn btn-g btn-s" href="#/entrar">Iniciar sesión</a><a class="btn btn-d btn-s" href="#/registro">Crear cuenta</a></header>`;
 }
 export function navApp(q = '') {
