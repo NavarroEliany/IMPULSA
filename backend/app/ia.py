@@ -248,8 +248,39 @@ def terminos_faltantes(palabras: str, resultados: list) -> list:
     return faltan
 
 
-def filtrar_parecidos(semantica: list) -> list:
+# Familias de categorías: si la consulta es claramente de comida, ropa, tecnología…, las alternativas
+# parecidas se buscan solo dentro de esa familia (evita que "tacos" proponga una taza).
+_FAMILIAS = [
+    (r"taco|burrito|nacho|quesadilla|pescad|marisc|camaron|ceviche|sopa|pasta|lasana|espagueti|pollo|carne|cerdo|"
+     r"comida|almuerzo|desayuno|cena|arroz|frit|asad|hamburgues|perro caliente|pizza|sandwich|sanduche|wrap|ensalada|"
+     r"crepe|waffle|mondongo|sancocho|bandeja|chorizo|morcilla|tamal|arepa|empanad|pan\b|panes|panader|torta|ponque|postre|"
+     r"helad|dulce|galleta|chocolate|fruta|jugo|bebida|gaseosa|cafe|te\b|aromatica|licor|vino|cerveza|ron\b|whisky|tequila",
+     {"comidas-rapidas", "comida", "comida-tipica", "panaderia", "reposteria", "heladeria", "frutas-mercado",
+      "dulces-snacks", "cafe", "cervezas-licores"}),
+    (r"computador|portatil|laptop|tablet|celular|telefono|iphone|samsung|xiaomi|audifono|cargador|parlante|"
+     r"camara|consola|videojuego|televisor|tv|mouse|teclado|impresora|reloj inteligente|smartwatch",
+     {"tecnologia"}),
+    (r"camisa|camiseta|pantalon|jean|vestido|falda|blusa|chaqueta|buzo|saco|ropa|pijama|gorra|bolso|cartera|"
+     r"zapato|tenis|sandalia|bota|calzado|correa|cinturon",
+     {"ropa-accesorios", "calzado", "artesanias"}),
+    (r"perfume|colonia|maquillaje|labial|crema|shampoo|unas|manicure|pedicure|cejas|pestanas|cabello|corte|barba",
+     {"belleza", "barberia", "bienestar"}),
+]
+
+
+def familia_de(palabras: str) -> Optional[set]:
+    t = _plano(palabras)
+    for patron, cats in _FAMILIAS:
+        if re.search(rf"\b(?:{patron})", t):
+            return cats
+    return None
+
+
+def filtrar_parecidos(semantica: list, palabras: str = "") -> list:
     """Sin Gemini: se queda con lo más parecido y con lo de su misma categoría que esté cerca en similitud."""
+    fam = familia_de(palabras) if palabras else None
+    if fam:
+        semantica = [p for p in semantica if p.get("categoria_slug") in fam]
     if not semantica or semantica[0]["similitud"] < SIM_MINIMA:
         return []
     top = semantica[0]

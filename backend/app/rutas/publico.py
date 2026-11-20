@@ -98,7 +98,7 @@ async def buscar(d: Busqueda, token: Optional[str] = Depends(sb.token_opcional))
                 resultados, mensaje = g
                 f["motor"] = "gemini"
             else:
-                resultados = ia.filtrar_parecidos(semantica)
+                resultados = ia.filtrar_parecidos(semantica, f["palabras"])
             mensaje = mensaje or ia.mensaje_sin_exacto(termino, resultados)
         if not resultados and not sin_exacto:
             # Sin vectores disponibles: se muestran las mejores opciones que cumplen el resto de filtros.
