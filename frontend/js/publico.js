@@ -30,7 +30,7 @@ ruta('/', async () => {
       <p style="font-size:19px;color:var(--char);max-width:560px;line-height:1.55">Impulsa reúne en un solo lugar a los emprendedores de Ocaña. Dile a la IA lo que necesitas, con tus palabras y tu presupuesto, y te mostramos quién lo tiene.</p>
       <form class="barra-ia" data-f="buscar" style="width:100%">${ic('spark', '#F4B73F', 'width:22px;height:22px')}
         <input name="q" placeholder="Necesito un regalo para mi novia, máximo $100.000" autocomplete="off" required>
-        <button class="btn btn-p" style="border-radius:16px">Buscar con IA ${ic('arrow', '#fff')}</button></form>
+        <button type="button" class="cam" data-a="foto" aria-label="Buscar con una foto" title="Buscar con una foto">${ic('camera')}</button><button class="btn btn-p" style="border-radius:16px">Buscar con IA ${ic('arrow', '#fff')}</button></form>
       <div class="row g8 envuelve"><span class="peq sua">Prueba:</span>
         ${['Uñas acrílicas cerca de mí', 'Torta para 15 personas', 'Detalle de amor y amistad hasta 50 mil'].map(t => `<a class="chip borde" href="#/buscar?q=${encodeURIComponent(t)}">${t}</a>`).join('')}</div>
       <div class="row g12"><div class="row">${[['MG', 'brasa'], ['JL', 'ink'], ['AR', 'oro'], ['SC', 'salvia']].map(([t, c], i) => `<span class="avatar" style="width:38px;height:38px;font-size:13px;background:var(--${c});color:${c === 'oro' ? 'var(--ink)' : '#fff'};border:3px solid var(--cream);margin-left:${i ? -10 : 0}px">${t}</span>`).join('')}</div>
@@ -50,6 +50,17 @@ ruta('/', async () => {
   <section class="cifras"><div class="wrap">
     <div><b>${s.emprendimientos}</b>emprendimientos locales</div><div><b>${s.categorias}</b>categorías y servicios</div>
     <div><b>${num(s.calificacion)}</b>calificación promedio</div><div><b>0%</b>comisión: el pago es directo</div></div></section>
+
+  <section class="wrap sec" style="padding-bottom:0"><div class="ia-vitrina">
+    <div class="col g12" style="max-width:520px"><span class="sello-ia claro">${ic('spark')}Inteligencia artificial</span>
+      <h2 class="d2" style="color:var(--cream)">La IA trabaja para ti <span class="serif" style="color:var(--oro)">y para el emprendedor.</span></h2>
+      <p style="color:var(--sand)">No es un buscador de palabras. Entiende lo que quieres, mira tus fotos, hace las cuentas de tu presupuesto y le dice a cada negocio qué le están pidiendo en Ocaña.</p></div>
+    <div class="grid c4">
+      <button class="ia-card" data-a="foto"><span class="ia-ic">${ic('camera')}</span><b>Busca con una foto</b><span>Sube la foto de algo que te gustó y la IA te dice quién lo hace en Ocaña.</span><i>Probar ${ic('arrow')}</i></button>
+      <a class="ia-card" href="#/armador"><span class="ia-ic">${ic('gift')}</span><b>Arma un regalo</b><span>Dile tu presupuesto: combina productos de varios negocios y te escribe la tarjeta.</span><i>Armar ${ic('arrow')}</i></a>
+      <a class="ia-card" href="#/buscar?q=${encodeURIComponent('algo rico para compartir con los del trabajo, unos 60 mil')}"><span class="ia-ic">${ic('msg')}</span><b>Pide como hablas</b><span>“Algo rico para compartir con los del trabajo, unos 60 mil”. Entiende precio, ocasión y para quién.</span><i>Ver ejemplo ${ic('arrow')}</i></a>
+      <a class="ia-card" href="#/registro?rol=emprendedor"><span class="ia-ic">${ic('up')}</span><b>Radar de demanda</b><span>Al emprendedor le muestra qué buscan en Ocaña y nadie vende, con consejos para vender más.</span><i>Soy emprendedor ${ic('arrow')}</i></a>
+    </div></div></section>
 
   <section class="wrap sec" style="padding-bottom:24px">
     <div class="cab"><div class="col g10"><span class="kick">Explora</span><h2 class="d2">¿Qué estás buscando hoy?</h2></div><a class="neg" style="color:var(--brasa)" href="#/buscar">Ver todo →</a></div>

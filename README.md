@@ -54,7 +54,13 @@ La búsqueda trabaja en tres capas:
 
 Si no hay nada exacto, la respuesta lo dice ("Por ahora no hay sushi en Impulsa. Lo que más se parece es…") y muestra las alternativas. Con Gemini activo, Gemini elige cuáles alternativas tienen sentido y redacta el aviso.
 
-**Cupo de Gemini.** El plan gratis tiene límite por minuto y por día, y el cupo diario se reinicia a medianoche del Pacífico (3 a. m. en Colombia). Si Google responde que se acabó, el backend deja de llamarlo hasta el reinicio y todo sigue funcionando con las capas 1 a 3 locales. Las interpretaciones de frases repetidas se guardan en memoria para no gastar cupo. `/api/salud` muestra si Gemini está activo, sin clave o sin cupo.
+**Funciones de IA a la vista.**
+
+- **Buscar con una foto** (`POST /api/buscar/foto`). El cliente sube una foto, Gemini la describe ("torta de dos pisos con flores") y la convierte en palabras clave, y la búsqueda normal encuentra lo más parecido en Ocaña. Si Gemini no está disponible, el endpoint responde con un aviso para que el cliente escriba lo que busca.
+- **Armador de regalos** (`POST /api/armador`, página `#/armador`). Con presupuesto, ocasión, para quién y gustos, el backend junta candidatos (por palabras, por significado y por ocasión) y arma hasta tres combos de negocios y categorías distintas sin pasarse del presupuesto. Las sumas las hace el código; Gemini pone nombre a cada combo, explica por qué sirve y escribe el mensaje de la tarjeta. Sin Gemini, esos textos salen de plantillas.
+- **Radar de demanda** (`GET /api/panel/radar`, página `#/panel/radar`). La función `radar_demanda` de Postgres cruza las búsquedas de los últimos 30 días con el catálogo: qué se buscó y nadie vende, en qué búsquedas aparece el negocio y frente a cuántos competidores, y qué temas subieron esta semana. Gemini convierte eso en tres oportunidades concretas para ese negocio, una vez al día. Las búsquedas de demostración están marcadas con `filtros->>'demo' = 'true'`.
+
+**Cupo de Gemini.** El plan gratis tiene límite por minuto y por día, y el cupo diario se reinicia a medianoche del Pacífico (3 a. m. en Colombia). Si Google responde que se acabó, el backend deja de llamarlo hasta el reinicio y todo sigue funcionando con las capas 1 a 3 locales. Las respuestas de Gemini (interpretaciones, fotos, combos y oportunidades) se guardan 24 horas en memoria: si muchas personas piden lo mismo, se gasta una sola consulta. `/api/salud` muestra si Gemini está activo, sin clave o sin cupo.
 
 ### Tareas programadas
 

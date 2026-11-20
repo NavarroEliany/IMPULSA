@@ -100,7 +100,29 @@ def interpretar_local(consulta: str) -> dict:
 # Plan gratis: cupo por minuto y por día (se reinicia a medianoche del Pacífico, 3 a. m. en Colombia).
 # Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
 _gemini_pausa_hasta = 0.0
-_cache_interpretar: dict = {}
+_cache: dict = {}
+CACHE_SEG = 24 * 3600
+
+
+def cache_leer(clave: str):
+    """Respuestas de Gemini guardadas 24 horas: si 50 personas buscan lo mismo, se gasta una sola consulta."""
+    import time
+    v = _cache.get(clave)
+    if not v:
+        return None
+    if v[1] < time.time():
+        _cache.pop(clave, None)
+        return None
+    return v[0]
+
+
+def cache_guardar(clave: str, valor) -> None:
+    import time
+    if len(_cache) > 2000:
+        ahora = time.time()
+        for k in [k for k, v in _cache.items() if v[1] < ahora] or list(_cache)[:500]:
+            _cache.pop(k, None)
+    _cache[clave] = (valor, time.time() + CACHE_SEG)
 
 
 def _siguiente_reinicio() -> float:
@@ -118,7 +140,7 @@ def gemini_disponible() -> bool:
 
 
 async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, max_tokens: int = 256,
-                  timeout: float = 10) -> Optional[str]:
+                  timeout: float = 10, imagen: Optional[tuple] = None) -> Optional[str]:
     global _gemini_pausa_hasta
     if not gemini_disponible():
         return None
@@ -131,7 +153,8 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
             r = await c.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
                 headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={"contents": [{"parts": [{"text": texto}]}], "generationConfig": config})
+                json={"contents": [{"parts": ([{"inline_data": {"mime_type": imagen[0], "data": imagen[1]}}] if imagen else [])
+                                    + [{"text": texto}]}], "generationConfig": config})
         if r.status_code == 429:
             por_dia = "PerDay" in r.text or "per day" in r.text.lower()
             _gemini_pausa_hasta = _siguiente_reinicio() if por_dia else time.time() + 60
@@ -146,9 +169,10 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
 async def interpretar_gemini(consulta: str) -> Optional[dict]:
     if not GEMINI_API_KEY:
         return None
-    clave = consulta.strip().lower()
-    if clave in _cache_interpretar:
-        return dict(_cache_interpretar[clave])
+    clave = "interpretar:" + consulta.strip().lower()
+    guardado = cache_leer(clave)
+    if guardado:
+        return dict(guardado)
     instruccion = (
         "Eres el buscador de Impulsa, un directorio de emprendimientos locales de Ocaña, Colombia. "
         "Extrae de la petición del cliente un JSON con estas claves: "
@@ -179,9 +203,7 @@ async def interpretar_gemini(consulta: str) -> Optional[dict]:
         "solo_disponibles": bool(d.get("solo_disponibles")),
         "motor": "gemini",
     }
-    if len(_cache_interpretar) > 500:
-        _cache_interpretar.clear()
-    _cache_interpretar[clave] = res
+    cache_guardar(clave, res)
     return dict(res)
 
 
@@ -445,3 +467,236 @@ async def redactar_descripcion(nombre: str, categoria: str, detalles: str) -> di
         partes.append(base[0].upper() + base[1:].rstrip(".") + ".")
     partes.append("Escríbenos por WhatsApp para pedirlo o personalizarlo.")
     return {"descripcion": " ".join(partes), "motor": "local"}
+
+
+# --- Buscar con una foto ----------------------------------------------------------------------
+async def mirar_foto(mime: str, datos_b64: str, categorias: list, texto_extra: str = "") -> Optional[dict]:
+    """Gemini mira la foto y la convierte en una búsqueda. Devuelve None si Gemini no está disponible."""
+    import hashlib
+    clave = "foto:" + hashlib.sha1((datos_b64[:4000] + datos_b64[-4000:] + texto_extra).encode()).hexdigest()
+    guardado = cache_leer(clave)
+    if guardado:
+        return dict(guardado)
+    t = await _gemini(
+        "Eres el buscador de Impulsa, directorio de emprendimientos de Ocaña, Colombia. El cliente subió esta foto "
+        "porque quiere comprar algo así o contratar ese servicio en Ocaña"
+        + (f" y agregó: \"{texto_extra[:150]}\"" if texto_extra else "") + ". Responde solo un JSON con: "
+        '"veo" (una frase corta en español que describa lo que se ve y que sirva para comprarlo, ej. '
+        '"Torta de dos pisos con flores rosadas y dorado"), '
+        '"busqueda" (2 a 5 palabras clave en español para buscarlo en un catálogo, sin colores salvo que sean clave), '
+        f'"categoria" (el slug más cercano de esta lista o null: {", ".join(categorias)}), '
+        '"ocasion" (una de: ' + ", ".join(OCASIONES) + ' o null), '
+        '"detalles" (lista de 2 o 3 rasgos que el cliente le puede pedir al emprendedor, ej. "dos pisos", "flores naturales"). '
+        'Si la foto no muestra nada que se pueda comprar, responde {"veo": null}.',
+        json_=True, temperatura=0.2, max_tokens=300, timeout=20, imagen=(mime, datos_b64))
+    if not t:
+        return None
+    try:
+        d = json.loads(t)
+    except Exception:
+        return None
+    if not isinstance(d, dict):
+        return None
+    res = {"veo": (str(d.get("veo"))[:160] if d.get("veo") else None),
+           "busqueda": str(d.get("busqueda") or "")[:80],
+           "categoria": d.get("categoria") if d.get("categoria") in categorias else None,
+           "ocasion": d.get("ocasion") if d.get("ocasion") in OCASIONES else None,
+           "detalles": [str(x)[:60] for x in (d.get("detalles") or [])][:3]}
+    cache_guardar(clave, res)
+    return res
+
+
+# --- Armador de regalos -----------------------------------------------------------------------
+def armar_combos(candidatos: list, presupuesto: int, max_combos: int = 3) -> list:
+    """Combina productos de distintos negocios y categorías sin pasarse del presupuesto.
+    Las sumas las hace el código; la IA solo pone nombre y explicación a cada combo."""
+    from itertools import combinations
+    vistos, pool = set(), []
+    for p in sorted(candidatos, key=lambda x: -x.get("_puntaje", 0)):
+        if p["id"] in vistos or p.get("agotado") or p["precio"] > presupuesto or p["precio"] <= 0:
+            continue
+        vistos.add(p["id"])
+        pool.append(p)
+    pool = pool[:26]
+    if not pool:
+        return []
+    opciones = []
+    for n in (1, 2, 3):
+        for grupo in combinations(pool, n):
+            total = sum(p["precio"] for p in grupo)
+            if total > presupuesto:
+                continue
+            if len({p["emprendimiento_id"] for p in grupo}) < n or len({p.get("categoria_id") for p in grupo}) < n:
+                continue
+            uso = total / presupuesto
+            if n == 1 and uso < 0.55:
+                continue
+            calidad = sum(p.get("_puntaje", 50) for p in grupo) / n
+            opciones.append({"items": list(grupo), "total": total, "uso": uso, "n": n,
+                             "puntaje": calidad + 30 * min(uso, 1) + (6 if n == 3 else 3 if n == 2 else 0)})
+    if not opciones:
+        return []
+    elegidos = []
+
+    def tomar(filtro, tipo):
+        for o in sorted([o for o in opciones if filtro(o)], key=lambda o: -o["puntaje"]):
+            ids = {p["id"] for p in o["items"]}
+            if all(len(ids & {p["id"] for p in e["items"]}) == 0 for e in elegidos):
+                o["tipo"] = tipo
+                elegidos.append(o)
+                return
+
+    tomar(lambda o: o["n"] >= 2 and o["uso"] >= 0.7, "completo")
+    tomar(lambda o: o["n"] <= 2 and o["uso"] >= 0.6 and max(p["precio"] for p in o["items"]) >= 0.45 * presupuesto, "especial")
+    antes = len(elegidos)
+    tomar(lambda o: o["n"] >= 2 and o["uso"] <= 0.7, "ahorro")
+    if len(elegidos) == antes:
+        tomar(lambda o: o["uso"] <= 0.7, "ahorro")
+    while len(elegidos) < max_combos:
+        antes = len(elegidos)
+        tomar(lambda o: True, "otra")
+        if len(elegidos) == antes:
+            break
+    for o in elegidos:
+        o["sobra"] = presupuesto - o["total"]
+    return elegidos[:max_combos]
+
+
+_NOMBRES_COMBO = {"completo": "El combo completo", "especial": "El detalle especial", "ahorro": "Bonito y te sobra",
+                  "otra": "Otra idea"}
+
+
+_TARJETAS = {
+    "Cumpleaños": ["Feliz cumpleaños. Que este año te traiga todo lo bonito que les das a los demás.",
+                   "Otro año más de ti, y qué suerte tenerte cerca. ¡Feliz cumpleaños!",
+                   "Que hoy celebres a lo grande. Te lo mereces todo."],
+    "Día de la Madre": ["Gracias por todo, mamá. Este detalle es apenas una parte de lo que te quiero.",
+                        "Para la mujer que me enseñó casi todo. Feliz día, mamá.",
+                        "Hoy y siempre, gracias por tanto amor. Feliz día."],
+    "Día del Padre": ["Feliz día, papá. Gracias por estar siempre.", "Para el mejor maestro que tuve. Feliz día.",
+                      "Gracias por cada consejo y cada sacrificio. Feliz día, papá."],
+    "Aniversario": ["Otro año contigo y lo volvería a escoger todo.", "Contigo los días buenos son mejores. Feliz aniversario.",
+                    "Gracias por cada día a mi lado. Por muchos más."],
+    "Amor y Amistad": ["Gracias por estar. La vida es mejor con gente como tú.", "Para alguien que hace mis días más bonitos.",
+                       "Un detalle pequeño para alguien que vale muchísimo."],
+    "Navidad": ["Feliz Navidad. Que la pases rodeado de los que quieres.", "Que esta Navidad te llene de paz y buenos momentos.",
+                "Un detalle con cariño para cerrar el año juntos."],
+    "Grados": ["Lo lograste. Orgullo total, y esto apenas empieza.", "Todo el esfuerzo valió la pena. ¡Felicitaciones!",
+               "Hoy celebramos lo que lograste. Lo mejor está por venir."],
+}
+
+
+def textos_combos_local(combos: list, ocasion: Optional[str], para: Optional[str]) -> list:
+    quien = para or "esa persona"
+    out = []
+    for i, c in enumerate(combos):
+        nombres = [p["nombre"][:1].lower() + p["nombre"][1:] for p in c["items"]]
+        negocios = len({p["emprendimiento_id"] for p in c["items"]})
+        if len(nombres) == 1:
+            por_que = f"Un solo detalle bien escogido: {nombres[0]} de {c['items'][0]['emprendimiento']}"
+        else:
+            lista = ", ".join(nombres[:-1]) + " y " + nombres[-1]
+            por_que = f"Junta {lista}" + (f", de {negocios} emprendimientos de Ocaña" if negocios > 1 else "")
+        por_que += f". Suma {pesos(c['total'])}" + (f" y te sobran {pesos(c['sobra'])}." if c["sobra"] >= 1000 else ", justo en tu presupuesto.")
+        variantes = _TARJETAS.get(ocasion or "") or [f"Para {quien}, con mucho cariño.", f"Un detalle hecho en Ocaña para {quien}.",
+                                                     "Porque te lo mereces. Con cariño."]
+        out.append({"nombre": _NOMBRES_COMBO.get(c["tipo"], "Otra idea"), "por_que": por_que, "tarjeta": variantes[i % len(variantes)]})
+    return out
+
+
+async def textos_combos(combos: list, ocasion: Optional[str], para: Optional[str], gustos: str, presupuesto: int) -> tuple:
+    """Con Gemini: nombre creativo, por qué funciona y mensaje para la tarjeta de cada combo."""
+    base = textos_combos_local(combos, ocasion, para)
+    if not combos or not gemini_disponible():
+        return base, "local"
+    import hashlib
+    ids = "|".join(",".join(sorted(p["id"] for p in c["items"])) for c in combos)
+    clave = "combos:" + hashlib.sha1(f"{ids}{ocasion}{para}{gustos}".encode()).hexdigest()
+    guardado = cache_leer(clave)
+    if guardado:
+        return guardado, "gemini"
+    lista = "\n".join(f"Combo {i + 1} (total {pesos(c['total'])}, sobran {pesos(c['sobra'])}): "
+                      + "; ".join(f"{p['nombre']} de {p['emprendimiento']} ({pesos(p['precio'])})" for p in c["items"])
+                      for i, c in enumerate(combos))
+    t = await _gemini(
+        "Eres el asesor de regalos de Impulsa, directorio de emprendimientos de Ocaña, Colombia. "
+        f"El cliente quiere un regalo{' para ' + para if para else ''}{' por ' + ocasion if ocasion else ''}, "
+        f"presupuesto {pesos(presupuesto)}{', gustos: ' + gustos if gustos else ''}. Estos combos ya están armados:\n{lista}\n\n"
+        'Responde solo un JSON con "combos": una lista con un objeto por combo, en el mismo orden, con '
+        '"nombre" (2 a 4 palabras creativas, sin emojis), "por_que" (1 o 2 frases cortas en español colombiano que expliquen '
+        'por qué ese combo le sirve a esa persona) y "tarjeta" (mensaje cálido de máximo 20 palabras para escribir en la tarjeta '
+        "del regalo). No cambies productos ni precios.", json_=True, temperatura=0.7, max_tokens=700, timeout=15)
+    try:
+        d = json.loads(t or "")
+        lista_g = d.get("combos") if isinstance(d, dict) else None
+        if not isinstance(lista_g, list) or len(lista_g) < len(combos):
+            return base, "local"
+        out = []
+        for b, g in zip(base, lista_g):
+            out.append({"nombre": str(g.get("nombre") or b["nombre"])[:40],
+                        "por_que": str(g.get("por_que") or b["por_que"])[:280],
+                        "tarjeta": str(g.get("tarjeta") or b["tarjeta"])[:160]})
+        cache_guardar(clave, out)
+        return out, "gemini"
+    except Exception:
+        return base, "local"
+
+
+# --- Radar de demanda ------------------------------------------------------------------------
+def radar_local(r: dict, negocio: dict) -> list:
+    ops = []
+    for s in (r.get("sin_oferta") or [])[:2]:
+        ops.append({"titulo": f"{s['n']} {'persona buscó' if s['n'] == 1 else 'personas buscaron'} “{s['consulta']}” y nadie lo vende",
+                    "texto": "Si puedes ofrecerlo, publícalo aunque sea por encargo: serías la única opción en Impulsa.",
+                    "accion": "Publicar producto", "enlace": "#/panel/producto/nuevo"})
+    for s in (r.get("tuyas") or [])[:2]:
+        if s.get("tuyos", 0) == 0:
+            continue
+        comp = s.get("ofertas", 0) - s.get("tuyos", 0)
+        ops.append({"titulo": f"“{s['consulta']}” te trae clientes",
+                    "texto": f"Se buscó {s['n']} veces y tienes {s['tuyos']} producto{'s' if s['tuyos'] != 1 else ''} que aparece"
+                             f"{'n' if s['tuyos'] != 1 else ''}" + (f"; compites con {comp} más." if comp > 0 else ", sin competencia.")
+                             + " Una promoción ahí puede convertir esas visitas en ventas.",
+                    "accion": "Crear promoción", "enlace": "#/panel/promociones"})
+    for s in (r.get("subiendo") or [])[:1]:
+        ops.append({"titulo": f"Sube la demanda de “{s['consulta']}”",
+                    "texto": f"Esta semana se buscó {s['n']} veces, contra {s['antes']} la semana pasada. Usa esas palabras en "
+                             "el nombre y las etiquetas de tus productos.",
+                    "accion": "Editar productos", "enlace": "#/panel/productos"})
+    return ops[:4]
+
+
+async def radar_oportunidades(r: dict, negocio: dict) -> tuple:
+    base = radar_local(r, negocio)
+    if not gemini_disponible():
+        return base, "local"
+    import datetime
+    clave = f"radar:{negocio['id']}:{datetime.date.today().isoformat()}"
+    guardado = cache_leer(clave)
+    if guardado:
+        return guardado, "gemini"
+    fmt = lambda xs, extra="": "; ".join(f"“{x['consulta']}” ({x['n']} veces{extra and ', ' + extra.format(**x)})" for x in xs[:8]) or "ninguna"
+    t = await _gemini(
+        "Eres el asesor de negocios de Impulsa, directorio de emprendimientos de Ocaña, Colombia. "
+        f"Negocio: {negocio['nombre']} ({negocio.get('categoria') or ''}): {negocio.get('descripcion') or ''}. "
+        f"Búsquedas de los últimos 30 días en Impulsa que no encontraron nada: {fmt(r.get('sin_oferta') or [])}. "
+        f"Búsquedas donde aparecen sus productos: {fmt(r.get('tuyas') or [], '{tuyos} suyos y {ofertas} en total')}. "
+        f"Búsquedas que suben esta semana: {fmt(r.get('subiendo') or [])}. "
+        'Responde solo un JSON con "oportunidades": lista de 3 objetos con "titulo" (máximo 9 palabras, con la cifra o la '
+        'búsqueda concreta), "texto" (1 o 2 frases con una acción concreta y realista para ESTE negocio; si una demanda no '
+        'tiene relación con lo que vende, no la recomiendes), "accion" (una de: "Publicar producto", "Crear promoción", '
+        '"Editar productos"). En español colombiano, sin emojis, sin inventar cifras.',
+        json_=True, temperatura=0.5, max_tokens=600, timeout=15)
+    enlaces = {"Publicar producto": "#/panel/producto/nuevo", "Crear promoción": "#/panel/promociones",
+               "Editar productos": "#/panel/productos"}
+    try:
+        d = json.loads(t or "")
+        ops = [{"titulo": str(o["titulo"])[:90], "texto": str(o["texto"])[:300],
+                "accion": o.get("accion") if o.get("accion") in enlaces else "Editar productos",
+                "enlace": enlaces.get(o.get("accion"), "#/panel/productos")} for o in d["oportunidades"][:4]]
+        if not ops:
+            return base, "local"
+        cache_guardar(clave, ops)
+        return ops, "gemini"
+    except Exception:
+        return base, "local"

@@ -284,6 +284,15 @@ async def subir_imagen(archivo: UploadFile = File(...), token: str = Depends(sb.
     return {"url": f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{ruta}"}
 
 
+@r.get("/radar", summary="Radar de demanda: lo que buscan en Ocaña, lo que nadie vende y oportunidades detectadas por la IA")
+async def radar(dias: int = 30, token: str = Depends(sb.token_requerido)):
+    n = await mi_negocio(token)
+    d = await sb.rpc("radar_demanda", token, p_emp=n["id"], p_dias=max(7, min(dias, 90)))
+    neg = await sb.uno("v_emprendimientos", token, id=f"eq.{n['id']}") or n
+    d["oportunidades"], d["motor"] = await ia.radar_oportunidades(d, neg)
+    return d
+
+
 @r.post("/ia/descripcion", summary="Redactar la descripción de un producto con IA")
 async def descripcion_ia(d: IdeaDescripcion, token: str = Depends(sb.token_requerido)):
     return await ia.redactar_descripcion(d.nombre.strip()[:120], d.categoria[:60], d.detalles[:400])

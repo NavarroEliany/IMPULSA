@@ -5,6 +5,7 @@ import { ic, esc, pesos, num, fecha, fechaCorta, hace, enDias, mesN, iniciales, 
   avisar, abrirCapa, cerrarCapa, vacio, campo, tarjetaCatalogo } from './ui.js';
 import { conNav } from './app.js';
 import { formularioGustos, pie } from './publico.js';
+import { bloqueFoto, sello } from './ia.js';
 
 const cab = (kick, titulo, extra = '') => `<div class="cab" style="margin-bottom:24px"><div class="col g8">${kick ? `<span class="kick">${kick}</span>` : ''}<h2 class="d3">${titulo}</h2></div>${extra}</div>`;
 const botonWa = (texto, datos, clase = '') => `<button class="btn btn-wa ${clase}" data-a="wa" ${datos}>${ic('wa', '#fff')}${texto}</button>`;
@@ -41,8 +42,9 @@ ruta('/inicio', async () => {
       <h1 class="d2" style="font-size:clamp(36px,4.6vw,56px)">${h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'}, ${esc(p.nombre)}.<br><span class="serif">esto te va a encantar hoy.</span></h1></div>
       <div class="col g16" style="background:var(--ink);border-radius:30px;padding:26px;width:600px;max-width:100%">
         <span class="row g8 peq neg" style="color:var(--oro)">${ic('spark')}Tu asistente Impulsa</span>
-        <form class="barra-ia" data-f="buscar" style="box-shadow:none;border:0;border-radius:18px;padding:7px 7px 7px 18px"><input name="q" required placeholder="¿Qué necesitas? Escríbelo como se lo dirías a un amigo…" style="font-size:15px" autocomplete="off"><button class="btn btn-p btn-s" style="border-radius:13px;padding:12px 16px">Buscar ${ic('arrow', '#fff')}</button></form>
-        <div class="row g8 envuelve">${[d.proxima_fecha?.regalo_idea ? `Regalo para ${d.proxima_fecha.persona || 'esa fecha'}: ${d.proxima_fecha.regalo_idea}` : 'Regalo de cumpleaños hasta 60 mil', 'Gomitas enchiladas', 'Uñas este sábado'].map(t => `<a class="chip" style="background:rgba(255,255,255,.1);color:var(--cream)" href="#/buscar?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join('')}</div></div></section>
+        <form class="barra-ia" data-f="buscar" style="box-shadow:none;border:0;border-radius:18px;padding:7px 7px 7px 18px"><input name="q" required placeholder="¿Qué necesitas? Escríbelo como se lo dirías a un amigo…" style="font-size:15px" autocomplete="off"><button type="button" class="cam" data-a="foto" aria-label="Buscar con una foto" title="Buscar con una foto">${ic('camera')}</button><button class="btn btn-p btn-s" style="border-radius:13px;padding:12px 16px">Buscar ${ic('arrow', '#fff')}</button></form>
+        <div class="row g8 envuelve">${[d.proxima_fecha?.regalo_idea ? `Regalo para ${d.proxima_fecha.persona || 'esa fecha'}: ${d.proxima_fecha.regalo_idea}` : 'Regalo de cumpleaños hasta 60 mil', 'Gomitas enchiladas', 'Uñas este sábado'].map(t => `<a class="chip" style="background:rgba(255,255,255,.1);color:var(--cream)" href="#/buscar?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join('')}</div>
+        <div class="row g8 envuelve"><a class="chip orof" style="color:var(--ink)" href="#/armador">${ic('gift')}Armar un regalo con mi presupuesto</a><button class="chip" style="background:rgba(255,255,255,.1);color:var(--cream)" data-a="foto">${ic('camera')}Buscar con una foto</button></div></div></section>
     <section>${cab('Para ti, hoy', 'Tus momentos')}<div class="grid c3">${m.slice(0, 3).join('')}</div></section>
     <section>${cab('Recomendado por la IA', `Elegido para ti, <span class="serif" style="font-size:1.15em">${esc(p.nombre)}</span>`,
       `<div class="row g8 envuelve"><span class="peq sua">Basado en:</span>${(d.gustos || []).slice(0, 3).map(g => `<span class="chip borde">${esc(g)}</span>`).join('') || '<a class="chip borde" href="#/perfil">Cuéntanos tus gustos</a>'}</div>`)}
@@ -61,15 +63,19 @@ ruta('/inicio', async () => {
 // ---------- búsqueda con IA y exploración
 const OCASIONES = ['Cumpleaños', 'Aniversario', 'Amor y Amistad', 'Día de la Madre', 'Día del Padre', 'Navidad', 'Halloween', 'Grados', 'Para ella', 'Para él', 'Regalo corporativo'];
 ruta('/buscar', async (_, q) => {
-  const texto = (q.get('q') || '').trim(), cats = await cargarCategorias();
+  let texto = (q.get('q') || '').trim();
+  const cats = await cargarCategorias();
   const f = { max: q.get('max'), cat: q.get('cat'), tipo: q.get('tipo'), oca: q.get('oca'), disp: q.get('disp') };
-  const r = await api('/buscar', { metodo: 'POST', cuerpo: { q: texto, precio_max: f.max ? Number(f.max) : null, categoria: f.cat || null, tipo: f.tipo || null,
+  const porFoto = q.get('foto') && estado.fotoBusqueda;
+  const r = porFoto ? estado.fotoBusqueda : await api('/buscar', { metodo: 'POST', cuerpo: { q: texto, precio_max: f.max ? Number(f.max) : null, categoria: f.cat || null, tipo: f.tipo || null,
     ocasion: f.oca || null, solo_disponibles: !!f.disp, limite: 36 } });
+  if (porFoto) texto = r.consulta || r.foto?.busqueda || 'tu foto';
   const res = r.resultados, mejor = texto && res[0], resto = mejor ? res.slice(1) : res, catSel = cats.find(c => c.slug === f.cat);
   const sel = (nombre, valor, ops) => `<div class="campo"><select name="${nombre}" style="height:46px">${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(valor || '') ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
   return conNav(`<main class="wrap pag" style="gap:32px">
     ${texto ? `<section class="entendi"><div class="col g16">
-        <span class="row g8 peq neg" style="color:var(--oro)">${ic('spark')}${r.sin_exacto ? 'No lo encontré exacto · te muestro lo más parecido' : 'Esto es lo que entendí'}${r.motor === 'gemini' ? ' · Gemini' : ''}</span>
+        <div class="row entre g8 envuelve"><span class="row g8 peq neg" style="color:var(--oro)">${ic(porFoto ? 'camera' : 'spark')}${porFoto ? 'Buscaste con una foto' : r.sin_exacto ? 'No lo encontré exacto · te muestro lo más parecido' : 'Esto es lo que entendí'}</span>${sello(r.motor, true)}</div>
+        ${porFoto ? bloqueFoto(r) : ''}
         <div class="row g8 envuelve">${r.chips.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>
         <p style="font-family:var(--fs);font-style:italic;font-size:clamp(22px,2.4vw,28px);line-height:1.25">${esc(r.mensaje)}</p>
         <div class="row g8 envuelve"><span class="peq" style="color:var(--sand)">Afinar:</span>${[['Más económico', texto + ' económico hasta ' + Math.round((r.filtros.precio_max || 80000) * 0.6 / 1000) + ' mil'], ['Que llegue hoy', texto + ' hoy'], ['Algo personalizado', texto + ' personalizado']].map(([t, v]) => `<a class="chip" style="background:#fff;color:var(--ink)" href="#/buscar?q=${encodeURIComponent(v)}">${t}</a>`).join('')}</div></div>

@@ -23,7 +23,7 @@ function marco(activo, html) {
   return `<div class="panel"><aside class="lateral">${logo(true, '#/panel')}
     ${n ? `<a class="row g12 solo-g" style="background:rgba(255,255,255,.06);padding:12px;border-radius:18px" href="#/negocio/${n.slug}"><div class="logo-n" style="width:42px;height:42px;border-radius:12px;font-size:15px;background:var(--oro) center/cover;color:var(--ink);${n.logo_url ? `background-image:url('${esc(n.logo_url)}')` : ''}">${n.logo_url ? '' : iniciales(n.nombre)}</div>
       <div class="crece"><b style="color:var(--cream);font-size:14px">${esc(n.nombre)}</b><div class="min row g4" style="color:var(--oro)">Ver perfil público ${ic('ext', 'currentColor', 'width:11px;height:11px')}</div></div></a>` : ''}
-    <nav class="col" style="gap:2px">${n ? en('#/panel', 'home', 'Resumen') + en('#/panel/productos', 'pkg', 'Productos') + en('#/panel/catalogos', 'book', 'Catálogos') + en('#/panel/pedidos', 'msg', 'Contactos y pedidos') + en('#/panel/resenas', 'staro', 'Reseñas') + en('#/panel/promociones', 'tag', 'Promociones') : ''}
+    <nav class="col" style="gap:2px">${n ? en('#/panel', 'home', 'Resumen') + en('#/panel/radar', 'up', 'Radar de demanda', '<span class="ia-tag">IA</span>') + en('#/panel/productos', 'pkg', 'Productos') + en('#/panel/catalogos', 'book', 'Catálogos') + en('#/panel/pedidos', 'msg', 'Contactos y pedidos') + en('#/panel/resenas', 'staro', 'Reseñas') + en('#/panel/promociones', 'tag', 'Promociones') : ''}
       ${en('#/panel/negocio', 'store', 'Perfil del negocio')}<a href="#/buscar">${ic('compass')}<span>Ver Impulsa</span></a></nav>
     <div class="crece solo-g"></div>
     <div class="col g10 solo-g" style="background:var(--oro);color:var(--ink);padding:18px;border-radius:20px"><span class="chip tinta" style="color:var(--oro);align-self:flex-start">${ic('spark')}Consejo</span>
@@ -35,6 +35,46 @@ function marco(activo, html) {
 const titulo = (t, sub, extra = '') => `<div class="row entre fin envuelve g16"><div class="col g6"><h1 class="d2" style="font-size:clamp(32px,3.6vw,44px)">${t}</h1>${sub ? `<span class="sua">${sub}</span>` : ''}</div><div class="row g10 envuelve">${extra}</div></div>`;
 const nuevoBtn = `<a class="btn btn-p" href="#/panel/producto/nuevo">${ic('plus', '#fff')}Nuevo producto</a>`;
 const th = (url, emoji = '📦') => `<div class="th52" style="${url ? `background-image:url('${esc(url)}')` : ''}">${url ? '' : emoji}</div>`;
+
+// ---------- radar de demanda (IA)
+ruta('/panel/radar', async () => {
+  if (!permitido()) return null;
+  const d = await api('/panel/radar');
+  const maxDia = Math.max(1, ...d.por_dia.map(x => x.n));
+  const maxTop = Math.max(1, ...d.top.map(x => x.n));
+  const motor = d.motor === 'gemini' ? 'Gemini' : 'IA de Impulsa';
+  const fila = (x, color, extra = '') => `<div class="col g6"><div class="row entre g8 peq"><span class="neg">“${esc(x.consulta)}”</span><b>${x.n}</b></div>
+    <div class="barra" style="height:8px"><i style="width:${Math.round(x.n * 100 / maxTop)}%;background:var(--${color})"></i></div>${extra}</div>`;
+  return marco('#/panel/radar', `
+    ${titulo(`Radar de <span class="serif">demanda.</span>`, `Lo que buscaron ${d.total.toLocaleString('es-CO')} veces los clientes en Impulsa durante los últimos 30 días`, `<span class="sello-ia">${ic('spark')}${motor}</span>`)}
+    <div class="grid c4" style="gap:16px">
+      <div class="card kpi oscura"><span class="peq" style="color:var(--sand)">Búsquedas en Ocaña</span><b>${d.total.toLocaleString('es-CO')}</b><span class="min" style="color:var(--sand)">${d.consultas_distintas} temas distintos</span></div>
+      <div class="card kpi"><span class="peq sua">Sin resultado</span><b style="color:var(--brasa)">${d.sin_resultado}</b><span class="min sua">${d.total ? Math.round(d.sin_resultado * 100 / d.total) : 0}% no encontró lo que quería</span></div>
+      <div class="card kpi"><span class="peq sua">Te encuentran por</span><b>${d.tuyas.length}</b><span class="min sua">búsquedas donde salen tus productos</span></div>
+      <div class="card kpi"><span class="peq sua">En subida</span><b style="color:var(--salvia)">${d.subiendo.length}</b><span class="min sua">temas que crecieron esta semana</span></div>
+    </div>
+    <div class="card col g16" style="background:var(--ink);color:var(--cream);border:0">
+      <div class="row g12"><span class="redondo" style="background:var(--oro);border:0;border-radius:12px;width:40px;height:40px">${ic('spark', '#16120F')}</span>
+        <div class="crece"><h3 class="d4">Oportunidades que detectó la IA</h3><span class="peq" style="color:var(--sand)">Cruza lo que buscan en Ocaña con lo que vende ${esc(estado.yo.negocio.nombre)} · se actualiza cada día</span></div></div>
+      ${d.oportunidades.length ? `<div class="grid c3" style="gap:12px">${d.oportunidades.map((o, i) => `<div class="oport"><span class="num-op">${i + 1}</span><b>${esc(o.titulo)}</b><span class="peq" style="color:var(--sand)">${esc(o.texto)}</span>
+        <a class="btn btn-p btn-s" style="margin-top:auto;align-self:flex-start" href="${o.enlace}">${esc(o.accion)} ${ic('arrow', '#fff', 'width:14px;height:14px')}</a></div>`).join('')}</div>`
+        : '<span class="peq" style="color:var(--sand)">Todavía hay pocas búsquedas para sacar conclusiones. Vuelve en unos días.</span>'}
+    </div>
+    <div class="card col g12"><div class="row entre envuelve"><div><h3 class="d4">Búsquedas por día</h3><span class="peq sua">En naranja, las que no encontraron nada</span></div></div>
+      <div class="barras-dia">${d.por_dia.map(x => `<div class="d" title="${fechaCorta(x.dia)}: ${x.n} búsquedas, ${x.sin} sin resultado"><i style="height:${Math.round(x.n * 100 / maxDia)}%"><em style="height:${x.n ? Math.round(x.sin * 100 / x.n) : 0}%"></em></i></div>`).join('')}</div>
+      <div class="row entre min sua"><span>${fechaCorta(d.por_dia[0].dia)}</span><span>Hoy</span></div></div>
+    <div class="row ini g16 dos">
+      <div class="card col g14 crece"><div><h3 class="d4">Lo que buscan y nadie vende</h3><span class="peq sua">Si puedes ofrecerlo, serías la primera opción en Impulsa</span></div>
+        ${d.sin_oferta.length ? d.sin_oferta.map(x => fila(x, 'brasa', `<span class="min sua">Última vez ${hace(x.ultima).toLowerCase()}</span>`)).join('') : '<span class="peq sua">Por ahora todo lo que buscan tiene al menos una opción.</span>'}</div>
+      <div class="col g16 crece">
+        <div class="card col g14"><div><h3 class="d4">Búsquedas donde apareces</h3><span class="peq sua">Tus productos frente a los de la competencia</span></div>
+          ${d.tuyas.length ? d.tuyas.map(x => `<div class="row g12"><div class="crece">${fila(x, 'salvia')}</div><span class="chip ${x.ofertas - x.tuyos > 0 ? 'borde' : 'salvia'}" style="font-size:12px;padding:5px 10px;flex:none">${x.ofertas - x.tuyos > 0 ? `${x.tuyos} tuyos · ${x.ofertas - x.tuyos} más` : 'Sin competencia'}</span></div>`).join('')
+            : '<span class="peq sua">Aún no apareces en las búsquedas más comunes. Revisa el nombre y las etiquetas de tus productos.</span>'}</div>
+        <div class="card col g10"><div><h3 class="d4">Subiendo esta semana</h3><span class="peq sua">Comparado con la semana anterior</span></div>
+          ${d.subiendo.length ? d.subiendo.map(x => `<div class="row entre peq"><span class="neg">“${esc(x.consulta)}”</span><span class="chip salvia" style="font-size:12px;padding:5px 10px">${ic('up', 'currentColor', 'width:13px;height:13px')}${x.antes} → ${x.n}</span></div>`).join('') : '<span class="peq sua">Sin cambios fuertes esta semana.</span>'}</div>
+      </div>
+    </div>`);
+});
 
 // ---------- resumen y estadísticas
 ruta('/panel', async () => {
@@ -69,7 +109,7 @@ ruta('/panel', async () => {
           : '<span class="sua peq">Aún no hay ventas confirmadas. Marca tus contactos como venta en “Contactos y pedidos”.</span>'}</div>
     </div>
     <div class="row ini g16 dos">
-      <div class="card col g12 crece" style="background:var(--oro);border:0"><div class="row g10"><span class="redondo" style="background:var(--ink);border:0;border-radius:12px;width:38px;height:38px">${ic('spark', '#F4B73F')}</span><div><h3 class="d4">La IA te recomienda</h3><span class="peq">Basado en tus ventas y en lo que buscan los clientes en Ocaña</span></div></div>
+      <div class="card col g12 crece" style="background:var(--oro);border:0"><div class="row g10"><span class="redondo" style="background:var(--ink);border:0;border-radius:12px;width:38px;height:38px">${ic('spark', '#F4B73F')}</span><div class="crece"><h3 class="d4">La IA te recomienda</h3><span class="peq">Basado en tus ventas y en lo que buscan los clientes en Ocaña</span></div><a class="btn btn-d btn-s" href="#/panel/radar">${ic('up', '#fff')}Ver radar de demanda</a></div>
         ${d.consejos.map(c => `<div class="row g12 envuelve" style="background:#fff;border-radius:18px;padding:16px"><div class="crece" style="min-width:220px"><b>${esc(c.titulo)}</b><div class="peq" style="color:var(--char)">${esc(c.texto)}</div></div><a class="btn btn-d btn-s" href="${c.enlace}">${esc(c.accion)} ${ic('arrow', '#fff', 'width:14px;height:14px')}</a></div>`).join('') || '<span class="peq">Todo al día. Sigue publicando productos para recibir más recomendaciones.</span>'}</div>
       <div class="card col g12" style="width:380px;flex:none"><div><h3 class="d4">¿Cómo te encuentran?</h3><span class="peq sua">Origen de tus contactos (90 días)</span></div>
         ${d.origenes.map(o => { const [t, c] = ORIGEN[o.origen] || [o.origen, 'char'], pc = Math.round(o.n * 100 / totalOrigen); return `<div class="col g6"><div class="row entre peq"><span class="neg">${t}</span><b>${pc}%</b></div><div class="barra" style="height:10px"><i style="width:${pc}%;background:var(--${c})"></i></div></div>`; }).join('')}

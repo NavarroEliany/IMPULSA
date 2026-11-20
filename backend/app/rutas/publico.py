@@ -22,6 +22,19 @@ class Busqueda(BaseModel):
     limite: int = 24
 
 
+class BusquedaFoto(BaseModel):
+    imagen: str                      # data URL o base64 (JPEG, PNG o WebP, máximo ~2 MB)
+    texto: str = ""                  # lo que el cliente quiera agregar: "pero en azul", "para 20 personas"
+
+
+class Armador(BaseModel):
+    presupuesto: int
+    ocasion: Optional[str] = None
+    para: Optional[str] = None
+    gustos: str = ""
+    semilla: int = 0                 # para pedir "otras ideas" con el mismo presupuesto
+
+
 class Contacto(BaseModel):
     producto_id: Optional[str] = None
     emprendimiento_id: Optional[str] = None
@@ -49,9 +62,15 @@ async def categorias():
 
 @r.post("/buscar", summary="Búsqueda en lenguaje natural con IA")
 async def buscar(d: Busqueda, token: Optional[str] = Depends(sb.token_opcional)):
+    return await _buscar(d, token)
+
+
+async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, registrar: Optional[str] = None):
     consulta = d.q.strip()[:200]
-    f = await ia.interpretar(consulta) if consulta else {"palabras": "", "precio_min": None, "precio_max": None,
-                                                           "ocasion": None, "para": None, "solo_disponibles": False, "motor": "local"}
+    if f is None:
+        f = await ia.interpretar(consulta) if consulta else {"palabras": "", "precio_min": None, "precio_max": None,
+                                                               "ocasion": None, "para": None, "solo_disponibles": False,
+                                                               "motor": "local"}
     # Los filtros que el cliente mueve a mano mandan sobre lo que interpretó la IA.
     if d.precio_min is not None:
         f["precio_min"] = d.precio_min
@@ -109,7 +128,7 @@ async def buscar(d: Busqueda, token: Optional[str] = Depends(sb.token_opcional))
         resultados[0]["razones"] = ia.razones(resultados[0], f)
     if consulta:
         try:
-            await sb.crear("busquedas", {"cliente_id": sb.uid_opcional(token), "consulta": consulta, "filtros": f,
+            await sb.crear("busquedas", {"cliente_id": sb.uid_opcional(token), "consulta": registrar or consulta, "filtros": f,
                                          "resultados": 0 if sin_exacto else len(resultados)}, token, devolver=False)
         except HTTPException:
             pass
@@ -175,3 +194,97 @@ async def contacto(d: Contacto, token: Optional[str] = Depends(sb.token_opcional
         texto = f"¡Hola, {emp['nombre']}! Los vi en Impulsa y quiero más información."
     numero = "".join(c for c in emp["whatsapp"] if c.isdigit())
     return {"url": f"https://wa.me/{numero}?text={quote(texto)}", "mensaje": texto}
+
+
+# ---------- buscar con una foto
+_MIMES = {"image/jpeg", "image/png", "image/webp"}
+
+
+@r.post("/buscar/foto", summary="Buscar con una foto: la IA mira la imagen y encuentra lo más parecido en Ocaña")
+async def buscar_foto(d: BusquedaFoto, token: Optional[str] = Depends(sb.token_opcional)):
+    datos, mime = d.imagen.strip(), "image/jpeg"
+    if datos.startswith("data:"):
+        cab, _, datos = datos.partition(",")
+        mime = cab[5:].split(";")[0] or mime
+    if mime not in _MIMES:
+        raise HTTPException(400, "Sube una foto en JPG, PNG o WebP")
+    if len(datos) > 2_800_000:
+        raise HTTPException(400, "La foto es muy pesada. Prueba con una más pequeña.")
+    if not ia.gemini_disponible():
+        raise HTTPException(503, "La búsqueda por foto usa a Gemini y en este momento no está disponible. "
+                                 "Escribe lo que buscas y la IA local te ayuda.")
+    cats = [c["slug"] for c in await sb.leer("categorias", select="slug", order="orden")]
+    vio = await ia.mirar_foto(mime, datos, cats, d.texto.strip()[:150])
+    if not vio:
+        raise HTTPException(503, "No pudimos analizar la foto ahora. Intenta en un momento o escribe lo que buscas.")
+    if not vio.get("veo"):
+        raise HTTPException(422, "No reconocimos algo que se pueda comprar en esa foto. Prueba con otra más clara.")
+    consulta = " ".join(x for x in [vio["busqueda"], d.texto.strip()[:80]] if x)
+    f = ia.interpretar_local(consulta)      # la foto ya gastó su consulta de Gemini
+    f["palabras"] = vio["busqueda"] or f["palabras"]
+    f["ocasion"] = f.get("ocasion") or vio.get("ocasion")
+    f["motor"] = "gemini"
+    res = await _buscar(Busqueda(q=consulta, limite=24), token, f=f, registrar=vio["busqueda"])
+    if not res["resultados"] and vio.get("categoria"):
+        res = await _buscar(Busqueda(q="", categoria=vio["categoria"], limite=24), token, f=dict(f, palabras=""))
+        res["consulta"] = consulta
+        res["sin_exacto"] = True
+        res["mensaje"] = "No encontré exactamente eso en Ocaña. Te muestro lo que hay en la misma categoría."
+    res["foto"] = vio
+    return res
+
+
+# ---------- armador de regalos
+@r.post("/armador", summary="Arma combos de regalo con productos de varios negocios sin pasarse del presupuesto")
+async def armador(d: Armador, token: Optional[str] = Depends(sb.token_opcional)):
+    presupuesto = max(10000, min(d.presupuesto, 5_000_000))
+    ocasion = d.ocasion if d.ocasion in ia.OCASIONES else None
+    para, gustos = (d.para or "").strip()[:40] or None, d.gustos.strip()[:160]
+
+    async def pedir(q: str, oca: Optional[str], limite: int = 40):
+        return await sb.rpc("buscar_productos", token, p_q=q, p_precio_min=None, p_precio_max=presupuesto,
+                            p_categoria=None, p_ocasion=oca, p_tipo=None, p_solo_disponibles=True, p_limite=limite) or []
+
+    texto = " ".join(x for x in [gustos, para or ""] if x)
+    pool: dict = {}
+
+    def sumar(lista, base):
+        for p in lista:
+            q = pool.setdefault(p["id"], dict(p, _puntaje=0))
+            q["_puntaje"] = max(q["_puntaje"], base + (p.get("match") or 50) * 0.6
+                                + (15 if ocasion and ocasion in (p.get("ocasiones") or []) else 0)
+                                + min(p.get("calificacion") or 0, 5) * 2)
+
+    if texto:
+        sumar(await pedir(texto, None), 25)
+        vec = await ia.vector(texto)
+        if vec:
+            try:
+                sem = await sb.rpc("buscar_semantico", token, p_vector=str(vec), p_precio_max=presupuesto,
+                                   p_solo_disponibles=True, p_limite=30) or []
+                sumar([dict(p, match=round(p["similitud"] * 100)) for p in sem if p["similitud"] >= ia.SIM_MINIMA], 10)
+            except HTTPException:
+                pass
+    if ocasion:
+        sumar(await pedir("", ocasion), 15)
+    if len(pool) < 12:
+        sumar(await pedir("", None, 60), 0)
+    # Solo productos (no servicios caros que se coman el presupuesto), salvo que pidan un servicio.
+    candidatos = [p for p in pool.values() if p.get("tipo") == "producto" or p["precio"] <= presupuesto * 0.7]
+    if d.semilla:
+        import random
+        rnd = random.Random(d.semilla)
+        for p in candidatos:
+            p["_puntaje"] += rnd.uniform(0, 25)
+    combos = ia.armar_combos(candidatos, presupuesto)
+    textos, motor = await ia.textos_combos(combos, ocasion, para, gustos, presupuesto)
+    for c, t in zip(combos, textos):
+        c.update(t)
+        for p in c["items"]:
+            p.pop("_puntaje", None)
+        c.pop("puntaje", None)
+    return {"presupuesto": presupuesto, "ocasion": ocasion, "para": para, "gustos": gustos, "motor": motor,
+            "combos": combos,
+            "mensaje": ("Armé estas opciones con productos de distintos emprendimientos de Ocaña. Las sumas ya están hechas: "
+                        "ninguna se pasa de tu presupuesto." if combos else
+                        "No alcancé a armar un combo con ese presupuesto. Prueba subiéndolo un poco o quitando gustos.")}

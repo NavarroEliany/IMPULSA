@@ -6,6 +6,7 @@ import './publico.js';
 import './cliente.js';
 import './panel.js';
 import './admin.js';
+import './ia.js';
 import './accesibilidad.js';
 
 const app = document.getElementById('app');
@@ -13,15 +14,15 @@ const app = document.getElementById('app');
 // ---------- barras de navegación
 export function navPublica() {
   return `<header class="nav">${logo()}<nav class="enlaces crece" style="justify-content:center">
-    <a href="#/buscar">Explorar</a><a href="#/negocios">Emprendimientos</a><a href="#/buscar?tipo=servicio">Servicios</a><a href="#/registro?rol=emprendedor">Para emprendedores</a></nav>
+    <a href="#/buscar">Explorar</a><a href="#/negocios">Emprendimientos</a><a href="#/armador" class="row g6">${ic('spark', '#EF5A2A')}Armador de regalos</a><a href="#/registro?rol=emprendedor">Para emprendedores</a></nav>
     <a class="btn btn-g btn-s" href="#/entrar">Iniciar sesión</a><a class="btn btn-d btn-s" href="#/registro">Crear cuenta</a></header>`;
 }
 export function navApp(q = '') {
   const y = estado.yo, p = y.perfil, es = p.rol === 'emprendedor', ad = p.rol === 'admin', h = location.hash;
   const en = (ruta, icono, texto) => `<a href="${ruta}" class="${h.startsWith(ruta) ? 'on' : ''}">${ic(icono)}<span>${texto}</span></a>`;
   return `<header class="nav">${logo(false, ad ? '#/admin' : es ? '#/panel' : '#/inicio')}
-    <form class="buscador" data-f="buscar">${ic('spark', '#F4B73F')}<input name="q" value="${esc(q)}" placeholder="Pregúntale a Impulsa: “torta para 15 personas el sábado”…" autocomplete="off"><button aria-label="Buscar">${ic('arrow', '#fff')}</button></form>
-    <nav class="enlaces">${en('#/buscar', 'compass', 'Explorar')}${ad ? en('#/admin', 'shield', 'Administración') : es ? en('#/panel', 'chart', 'Mi panel') : en('#/calendario', 'cal', 'Calendario') + en('#/favoritos', 'heart', 'Favoritos')}</nav>
+    <form class="buscador" data-f="buscar">${ic('spark', '#F4B73F')}<input name="q" value="${esc(q)}" placeholder="Pregúntale a Impulsa: “torta para 15 personas el sábado”…" autocomplete="off"><button type="button" class="cam" data-a="foto" aria-label="Buscar con una foto" title="Buscar con una foto">${ic('camera')}</button><button aria-label="Buscar">${ic('arrow', '#fff')}</button></form>
+    <nav class="enlaces">${en('#/buscar', 'compass', 'Explorar')}${ad ? en('#/admin', 'shield', 'Administración') : es ? en('#/panel', 'chart', 'Mi panel') : en('#/armador', 'gift', 'Regalos IA') + en('#/calendario', 'cal', 'Calendario') + en('#/favoritos', 'heart', 'Favoritos')}</nav>
     <button class="redondo" data-a="notis" aria-label="Notificaciones">${ic('bell')}${y.sin_leer ? `<span class="punto">${y.sin_leer}</span>` : ''}</button>
     <div style="position:relative"><button class="avatar" data-a="menu" style="${p.avatar_url ? `background-image:url('${esc(p.avatar_url)}')` : ''}">${p.avatar_url ? '' : iniciales(p.nombre + ' ' + p.apellido)}</button>
       <div class="menu oculto" id="menu"><div style="padding:10px 12px"><b>${esc(p.nombre)} ${esc(p.apellido)}</b><div class="min sua">${esc(p.email)}</div></div>
