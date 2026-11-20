@@ -96,9 +96,59 @@ def interpretar_local(consulta: str) -> dict:
     }
 
 
+# --- Gemini -------------------------------------------------------------------------------
+# Plan gratis: cupo por minuto y por día (se reinicia a medianoche del Pacífico, 3 a. m. en Colombia).
+# Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
+_gemini_pausa_hasta = 0.0
+_cache_interpretar: dict = {}
+
+
+def _siguiente_reinicio() -> float:
+    import time
+    ahora = time.time()
+    # Medianoche del Pacífico = 08:00 UTC (07:00 en horario de verano); se usa 08:00 para no quedarse corto.
+    dia = 86400
+    reinicio = (ahora // dia) * dia + 8 * 3600
+    return reinicio if reinicio > ahora else reinicio + dia
+
+
+def gemini_disponible() -> bool:
+    import time
+    return bool(GEMINI_API_KEY) and time.time() >= _gemini_pausa_hasta
+
+
+async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, max_tokens: int = 256,
+                  timeout: float = 10) -> Optional[str]:
+    global _gemini_pausa_hasta
+    if not gemini_disponible():
+        return None
+    import time
+    config = {"temperature": temperatura, "maxOutputTokens": max_tokens}
+    if json_:
+        config["responseMimeType"] = "application/json"
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as c:
+            r = await c.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text": texto}]}], "generationConfig": config})
+        if r.status_code == 429:
+            por_dia = "PerDay" in r.text or "per day" in r.text.lower()
+            _gemini_pausa_hasta = _siguiente_reinicio() if por_dia else time.time() + 60
+            return None
+        if r.status_code != 200:
+            return None
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception:
+        return None
+
+
 async def interpretar_gemini(consulta: str) -> Optional[dict]:
     if not GEMINI_API_KEY:
         return None
+    clave = consulta.strip().lower()
+    if clave in _cache_interpretar:
+        return dict(_cache_interpretar[clave])
     instruccion = (
         "Eres el buscador de Impulsa, un directorio de emprendimientos locales de Ocaña, Colombia. "
         "Extrae de la petición del cliente un JSON con estas claves: "
@@ -108,33 +158,31 @@ async def interpretar_gemini(consulta: str) -> Optional[dict]:
         '"para" (a quién va dirigido en segunda persona, por ejemplo "tu novia", o null), '
         '"solo_disponibles" (true si lo necesita hoy o urgente). Responde solo el JSON.\n\nPetición: ' + consulta
     )
+    texto = await _gemini(instruccion, json_=True, temperatura=0.1)
+    if not texto:
+        return None
     try:
-        async with httpx.AsyncClient(timeout=12) as c:
-            r = await c.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={"contents": [{"parts": [{"text": instruccion}]}],
-                      "generationConfig": {"responseMimeType": "application/json", "temperature": 0.1}})
-        if r.status_code != 200:
-            return None
-        texto = r.json()["candidates"][0]["content"]["parts"][0]["text"]
         d = json.loads(texto)
-        if not isinstance(d, dict):
-            return None
-
-        def entero(v):
-            return int(v) if isinstance(v, (int, float)) and v > 0 else None
-
-        return {
-            "palabras": str(d.get("palabras") or "")[:120],
-            "precio_min": entero(d.get("precio_min")), "precio_max": entero(d.get("precio_max")),
-            "ocasion": d.get("ocasion") if d.get("ocasion") in OCASIONES else None,
-            "para": (str(d["para"])[:40] if d.get("para") else None),
-            "solo_disponibles": bool(d.get("solo_disponibles")),
-            "motor": "gemini",
-        }
     except Exception:
         return None
+    if not isinstance(d, dict):
+        return None
+
+    def entero(v):
+        return int(v) if isinstance(v, (int, float)) and v > 0 else None
+
+    res = {
+        "palabras": str(d.get("palabras") or "")[:120],
+        "precio_min": entero(d.get("precio_min")), "precio_max": entero(d.get("precio_max")),
+        "ocasion": d.get("ocasion") if d.get("ocasion") in OCASIONES else None,
+        "para": (str(d["para"])[:40] if d.get("para") else None),
+        "solo_disponibles": bool(d.get("solo_disponibles")),
+        "motor": "gemini",
+    }
+    if len(_cache_interpretar) > 500:
+        _cache_interpretar.clear()
+    _cache_interpretar[clave] = res
+    return dict(res)
 
 
 async def interpretar(consulta: str) -> dict:
@@ -171,35 +219,75 @@ async def vector(texto: str) -> Optional[list]:
     return None
 
 
-# Umbrales de similitud del modelo gte-small (coseno). Calibrados con el catálogo de Impulsa.
-SIM_EXACTA = 0.86
-SIM_PARECIDA = 0.80
+# Umbrales de similitud del modelo gte-small (coseno), calibrados con el catálogo de Impulsa.
+# El modelo es pequeño y en español tiene ruido: por eso la coincidencia exacta la decide la búsqueda por
+# palabras, y los vectores solo proponen "lo más parecido" cuando no hay nada exacto.
+SIM_EXTRA = 0.88      # se suma a resultados que ya coinciden por palabras
+SIM_MINIMA = 0.83     # por debajo de esto no se considera parecido
+SIM_MARGEN = 0.025    # distancia máxima frente al más parecido
 
 
-async def explicar_gemini(consulta: str, termino: str, parecidos: list) -> Optional[str]:
-    """Con Gemini, redacta el aviso de "no hay, pero lo más parecido es…". Sin clave devuelve None."""
-    if not GEMINI_API_KEY or not parecidos:
+_GENERICAS = set("""regalo regalos detalle detalles sorpresa cosa cosas producto productos servicio servicios
+personalizado personalizada especial original rico rica sabroso sabrosa grande pequeño pequeno""".split())
+
+
+def terminos_faltantes(palabras: str, resultados: list) -> list:
+    """Palabras de la búsqueda que no aparecen en ningún resultado (ej. "pescado" en "pescado frito")."""
+    if not palabras or not resultados:
+        return []
+    textos = [_plano(" ".join([p.get("nombre") or "", p.get("descripcion") or "", " ".join(p.get("etiquetas") or []),
+                               p.get("categoria") or ""])) for p in resultados[:12]]
+    faltan = []
+    for w in _plano(palabras).split():
+        if len(w) < 4 or w in _GENERICAS or any(re.fullmatch(pt, w) for pt, *_ in _PARA) \
+                or any(re.match(pt, w) for pt, _ in _OCASION_PALABRAS):
+            continue
+        raiz = w[:5] if len(w) > 5 else w.rstrip("s")
+        if not any(re.search(rf"\b{re.escape(raiz)}", t) for t in textos):
+            faltan.append(w)
+    return faltan
+
+
+def filtrar_parecidos(semantica: list) -> list:
+    """Sin Gemini: se queda con lo más parecido y con lo de su misma categoría que esté cerca en similitud."""
+    if not semantica or semantica[0]["similitud"] < SIM_MINIMA:
+        return []
+    top = semantica[0]
+    out = [top]
+    for p in semantica[1:]:
+        if len(out) >= 4:
+            break
+        cerca = p["similitud"] >= top["similitud"] - SIM_MARGEN and p["similitud"] >= SIM_MINIMA
+        if cerca and p.get("categoria_id") == top.get("categoria_id"):
+            out.append(p)
+    return out
+
+
+async def elegir_parecidos_gemini(consulta: str, termino: str, candidatos: list) -> Optional[tuple]:
+    """Con Gemini: de los candidatos por vectores elige los que de verdad se parecen a lo que pidió el cliente
+    y redacta el aviso. Devuelve (lista_elegida, mensaje) o None si Gemini no está disponible."""
+    if not candidatos or not gemini_disponible():
         return None
-    lista = "; ".join(f"{p['nombre']} de {p['emprendimiento']} ({pesos(p['precio'])})" for p in parecidos[:4])
+    lista = "\n".join(f"{i}. {p['nombre']} | {p.get('categoria') or ''} | {p['emprendimiento']} | {pesos(p['precio'])}"
+                      for i, p in enumerate(candidatos[:10]))
+    t = await _gemini(
+        "Eres el buscador de Impulsa, directorio de emprendimientos de Ocaña, Colombia. "
+        f"El cliente buscó: \"{consulta}\". En el catálogo no hay nada exacto. Estos son candidatos parecidos:\n{lista}\n\n"
+        'Responde solo un JSON con "indices": lista con los números de los candidatos que sí sirven como alternativa '
+        "real a lo que pidió (máximo 4, del más útil al menos útil; lista vacía si ninguno tiene relación), y "
+        '"mensaje": máximo 2 frases cortas en español colombiano, sin emojis, que digan que por ahora no hay '
+        f"{termino} y recomienden la mejor alternativa elegida diciendo por qué (o que no hay nada parecido). "
+        "No inventes productos.", json_=True, temperatura=0.2, max_tokens=200)
+    if not t:
+        return None
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={"contents": [{"parts": [{"text":
-                    "Eres el buscador de Impulsa, directorio de emprendimientos de Ocaña, Colombia. "
-                    f"El cliente buscó: \"{consulta}\". No hay ningún producto exacto de eso. "
-                    f"Los más parecidos del catálogo son: {lista}. "
-                    "En máximo 2 frases cortas, en español colombiano y sin emojis: dile que por ahora no hay "
-                    f"{termino} y recomiéndale la opción más útil de la lista explicando en pocas palabras por qué. "
-                    "No inventes productos que no estén en la lista."}]}],
-                      "generationConfig": {"temperature": 0.4, "maxOutputTokens": 120}})
-        if r.status_code == 200:
-            t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            return t[:300] or None
+        d = json.loads(t)
+        idx = [int(i) for i in d.get("indices", []) if 0 <= int(i) < min(10, len(candidatos))]
+        msg = str(d.get("mensaje") or "").strip()[:320]
     except Exception:
-        pass
-    return None
+        return None
+    elegidos = [candidatos[i] for i in dict.fromkeys(idx)][:4]
+    return elegidos, (msg or None)
 
 
 def pesos(n) -> str:
@@ -241,7 +329,8 @@ def razones(p: dict, f: dict) -> list:
 
 def mensaje_sin_exacto(termino: str, parecidos: list) -> str:
     if not parecidos:
-        return f"Por ahora no hay {termino} en Impulsa. Prueba con otras palabras o revisa las categorías."
+        return (f"Por ahora no hay {termino} en Impulsa ni algo parecido. Prueba con otras palabras "
+                "o revisa las categorías.")
     m = parecidos[0]
     txt = f"Por ahora no hay {termino} en Impulsa. Lo que más se parece es {m['nombre']} de {m['emprendimiento']} ({pesos(m['precio'])})"
     otros = [p["nombre"][:1].lower() + p["nombre"][1:] for p in parecidos[1:3]]
@@ -313,22 +402,13 @@ def consejos(resumen: dict, proximas: list) -> list:
 
 async def redactar_descripcion(nombre: str, categoria: str, detalles: str) -> dict:
     base = (detalles or "").strip()
-    if GEMINI_API_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=15) as c:
-                r = await c.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                    headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                    json={"contents": [{"parts": [{"text":
-                        "Escribe la descripción de un producto para un marketplace de emprendedores de Ocaña, Colombia. "
-                        "Máximo 280 caracteres, tono cálido y concreto, sin emojis ni exageraciones, sin inventar datos. "
-                        f"Producto: {nombre}. Categoría: {categoria}. Notas del vendedor: {base or 'ninguna'}."}]}],
-                          "generationConfig": {"temperature": 0.6}})
-            if r.status_code == 200:
-                texto = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                return {"descripcion": texto[:400], "motor": "gemini"}
-        except Exception:
-            pass
+    texto = await _gemini(
+        "Escribe la descripción de un producto para un marketplace de emprendedores de Ocaña, Colombia. "
+        "Máximo 280 caracteres, tono cálido y concreto, sin emojis ni exageraciones, sin inventar datos. "
+        f"Producto: {nombre}. Categoría: {categoria}. Notas del vendedor: {base or 'ninguna'}.",
+        temperatura=0.6, max_tokens=200, timeout=15)
+    if texto:
+        return {"descripcion": texto[:400], "motor": "gemini"}
     partes = [f"{nombre}, hecho por un emprendimiento local de Ocaña."]
     if base:
         partes.append(base[0].upper() + base[1:].rstrip(".") + ".")

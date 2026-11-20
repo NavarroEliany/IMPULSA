@@ -46,7 +46,15 @@ Las cuentas se crean ya confirmadas con la función `registrar_usuario`, por eso
 
 ### Búsqueda
 
-`backend/app/ia.py` convierte la frase del cliente en filtros: palabras clave, precio mínimo y máximo, ocasión y destinatario. Trae un intérprete propio por reglas que entiende montos como "100 mil", "80k" o "1 millón". Si se define la variable `GEMINI_API_KEY`, usa Gemini para interpretar y deja las reglas como respaldo. Los filtros van a la función `buscar_productos` de Postgres, que ordena por coincidencia de texto y por afinidad con los gustos del cliente.
+La búsqueda trabaja en tres capas:
+
+1. **Interpretar la frase.** `backend/app/ia.py` saca palabras clave, precio mínimo y máximo, ocasión y destinatario. Trae un intérprete propio por reglas que entiende montos como "100 mil", "80k" o "1 millón". Si existe `GEMINI_API_KEY`, este paso lo hace Gemini y las reglas quedan de respaldo.
+2. **Buscar por palabras.** La función `buscar_productos` de Postgres ordena por coincidencia de texto (sin tildes y con errores de escritura) y por afinidad con los gustos del cliente.
+3. **Buscar por significado.** Cada producto tiene un vector de 384 números que calcula el modelo gte-small dentro de la Edge Function `ia-impulsa` de Supabase (sin claves ni cupo diario). Un `pg_cron` revisa cada minuto si hay productos nuevos o editados sin vector y los calcula. La consulta del cliente también se convierte en vector y `buscar_semantico` devuelve lo más parecido.
+
+Si no hay nada exacto, la respuesta lo dice ("Por ahora no hay sushi en Impulsa. Lo que más se parece es…") y muestra las alternativas. Con Gemini activo, Gemini elige cuáles alternativas tienen sentido y redacta el aviso.
+
+**Cupo de Gemini.** El plan gratis tiene límite por minuto y por día, y el cupo diario se reinicia a medianoche del Pacífico (3 a. m. en Colombia). Si Google responde que se acabó, el backend deja de llamarlo hasta el reinicio y todo sigue funcionando con las capas 1 a 3 locales. Las interpretaciones de frases repetidas se guardan en memoria para no gastar cupo. `/api/salud` muestra si Gemini está activo, sin clave o sin cupo.
 
 ### Tareas programadas
 
@@ -70,7 +78,7 @@ La cuenta de administrador es `admin@impulsa.demo` y su contraseña no está en 
 1. Entrar a https://render.com/deploy?repo=https://github.com/NavarroEliany/IMPULSA con la cuenta de GitHub.
 2. Pulsar **Apply**. Render lee `render.yaml`, instala las dependencias y publica el servicio.
 
-No hay variables que llenar. `GEMINI_API_KEY` es opcional y se agrega después en Environment si se quiere la interpretación con Gemini.
+No hay variables que llenar. `GEMINI_API_KEY` es opcional: se crea gratis en Google AI Studio y se agrega en Render, en Environment. `GEMINI_MODEL` permite cambiar el modelo (por defecto `gemini-flash-latest`).
 
 ## Ejecutar en el computador
 

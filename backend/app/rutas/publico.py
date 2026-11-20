@@ -32,7 +32,9 @@ class Contacto(BaseModel):
 
 @r.get("/salud", tags=["Sistema"], summary="Estado del servicio")
 async def salud():
-    return {"ok": True, "servicio": "impulsa", "ia": "gemini" if GEMINI_API_KEY else "local"}
+    estado_gemini = "activo" if ia.gemini_disponible() else ("sin cupo por hoy" if GEMINI_API_KEY else "sin clave")
+    return {"ok": True, "servicio": "impulsa", "ia": "gemini" if ia.gemini_disponible() else "local",
+            "busqueda_semantica": "gte-small (Supabase)", "gemini": estado_gemini}
 
 
 @r.get("/inicio", summary="Datos de la página principal")
@@ -77,20 +79,27 @@ async def buscar(d: Busqueda, token: Optional[str] = Depends(sb.token_opcional))
                                          p_tipo=d.tipo, p_solo_disponibles=f["solo_disponibles"], p_limite=12) or []
             except HTTPException:
                 semantica = []
-        if resultados:
+        faltan = ia.terminos_faltantes(f["palabras"], resultados)
+        if resultados and faltan and len(faltan) < len(f["palabras"].split()):
+            # Coincide solo en parte: se muestra, pero se avisa qué no hay.
+            sin_exacto = True
+            mensaje = (f"Por ahora no hay {' ni '.join(faltan)} en Impulsa. Lo más cercano es {resultados[0]['nombre']} "
+                       f"de {resultados[0]['emprendimiento']} ({ia.pesos(resultados[0]['precio'])}).")
+        elif resultados:
+            cat = resultados[0].get("categoria_id")
             vistos = {p["id"] for p in resultados}
-            resultados += [p for p in semantica if p["id"] not in vistos and p["similitud"] >= ia.SIM_EXACTA]
-        else:
-            exactos = [p for p in semantica if p["similitud"] >= ia.SIM_EXACTA]
-            if exactos:
-                resultados = exactos
+            resultados += [p for p in semantica if p["id"] not in vistos and p["similitud"] >= ia.SIM_EXTRA
+                           and p.get("categoria_id") == cat]
+        elif semantica:
+            sin_exacto = True
+            termino = f["palabras"] if len(f["palabras"]) <= 40 else "eso"
+            g = await ia.elegir_parecidos_gemini(consulta, termino, semantica)
+            if g:
+                resultados, mensaje = g
+                f["motor"] = "gemini"
             else:
-                sin_exacto = True
-                parecidos = [p for p in semantica if p["similitud"] >= ia.SIM_PARECIDA][:8] or semantica[:4]
-                termino = f["palabras"] if len(f["palabras"]) <= 40 else "eso"
-                mensaje = (await ia.explicar_gemini(consulta, termino, parecidos)
-                           or ia.mensaje_sin_exacto(termino, parecidos))
-                resultados = parecidos
+                resultados = ia.filtrar_parecidos(semantica)
+            mensaje = mensaje or ia.mensaje_sin_exacto(termino, resultados)
         if not resultados and not sin_exacto:
             # Sin vectores disponibles: se muestran las mejores opciones que cumplen el resto de filtros.
             resultados = await consulta_bd("", f["precio_max"])
