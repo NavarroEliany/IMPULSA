@@ -65,21 +65,47 @@ async def buscar(d: Busqueda, token: Optional[str] = Depends(sb.token_opcional))
                             p_solo_disponibles=f["solo_disponibles"], p_limite=max(1, min(d.limite, 60))) or []
 
     resultados = await consulta_bd(f["palabras"], f["precio_max"])
-    ampliada = False
-    if not resultados and f["palabras"]:
-        # Sin coincidencias de texto: se muestran las mejores opciones que cumplen el resto de filtros.
-        resultados = await consulta_bd("", f["precio_max"])
-        ampliada = True
-    if resultados:
+    ampliada, sin_exacto, mensaje = False, False, None
+    if f["palabras"]:
+        # Búsqueda por significado: entiende sinónimos y encuentra lo más parecido aunque no coincidan las palabras.
+        vec = await ia.vector(f["palabras"])
+        semantica = []
+        if vec:
+            try:
+                semantica = await sb.rpc("buscar_semantico", token, p_vector=str(vec), p_precio_min=f["precio_min"],
+                                         p_precio_max=f["precio_max"], p_categoria=d.categoria, p_ocasion=f["ocasion"],
+                                         p_tipo=d.tipo, p_solo_disponibles=f["solo_disponibles"], p_limite=12) or []
+            except HTTPException:
+                semantica = []
+        if resultados:
+            vistos = {p["id"] for p in resultados}
+            resultados += [p for p in semantica if p["id"] not in vistos and p["similitud"] >= ia.SIM_EXACTA]
+        else:
+            exactos = [p for p in semantica if p["similitud"] >= ia.SIM_EXACTA]
+            if exactos:
+                resultados = exactos
+            else:
+                sin_exacto = True
+                parecidos = [p for p in semantica if p["similitud"] >= ia.SIM_PARECIDA][:8] or semantica[:4]
+                termino = f["palabras"] if len(f["palabras"]) <= 40 else "eso"
+                mensaje = (await ia.explicar_gemini(consulta, termino, parecidos)
+                           or ia.mensaje_sin_exacto(termino, parecidos))
+                resultados = parecidos
+        if not resultados and not sin_exacto:
+            # Sin vectores disponibles: se muestran las mejores opciones que cumplen el resto de filtros.
+            resultados = await consulta_bd("", f["precio_max"])
+            ampliada = True
+        resultados = resultados[:max(1, min(d.limite, 60))]
+    if resultados and not sin_exacto:
         resultados[0]["razones"] = ia.razones(resultados[0], f)
     if consulta:
         try:
             await sb.crear("busquedas", {"cliente_id": sb.uid_opcional(token), "consulta": consulta, "filtros": f,
-                                         "resultados": len(resultados)}, token, devolver=False)
+                                         "resultados": 0 if sin_exacto else len(resultados)}, token, devolver=False)
         except HTTPException:
             pass
-    return {"consulta": consulta, "filtros": f, "chips": ia.chips(f), "mensaje": ia.mensaje(resultados, f, ampliada),
-            "motor": f.get("motor", "local"), "resultados": resultados}
+    return {"consulta": consulta, "filtros": f, "chips": ia.chips(f), "mensaje": mensaje or ia.mensaje(resultados, f, ampliada),
+            "sin_exacto": sin_exacto, "motor": f.get("motor", "local"), "resultados": resultados}
 
 
 @r.get("/productos/{producto_id}", summary="Detalle de un producto")

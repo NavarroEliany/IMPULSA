@@ -123,7 +123,7 @@ ruta('/entrar', async () => {
     <div data-error></div>
     <button class="btn btn-p btn-b">Iniciar sesión</button>
     <div class="row g12"><i class="crece" style="height:1px;background:var(--sand)"></i><span class="peq sua">o prueba con una cuenta de demostración</span><i class="crece" style="height:1px;background:var(--sand)"></i></div>
-    <div class="row g12 fila-f"><button type="button" class="btn btn-g crece" data-a="demo" data-u="laura">${ic('bag')}Entrar como cliente</button><button type="button" class="btn btn-g crece" data-a="demo" data-u="gloria">${ic('store')}Entrar como negocio / emprendimiento</button></div>
+    <div class="demos"><button type="button" class="btn btn-g" data-a="demo" data-u="laura">${ic('bag')}<span>Entrar como cliente</span></button><button type="button" class="btn btn-g" data-a="demo" data-u="gloria">${ic('store')}<span>Entrar como negocio / emprendimiento</span></button></div>
     <p class="centro sua">¿Aún no tienes cuenta? <a class="neg" style="color:var(--brasa)" href="#/registro">Créala gratis</a></p>
   </form></div>`;
 });

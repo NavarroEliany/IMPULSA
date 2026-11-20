@@ -11,7 +11,7 @@ from typing import Optional
 
 import httpx
 
-from .config import GEMINI_API_KEY, GEMINI_MODEL
+from .config import GEMINI_API_KEY, GEMINI_MODEL, SUPABASE_URL
 
 OCASIONES = ["Cumpleaños", "Aniversario", "Amor y Amistad", "Día de la Madre", "Día del Padre", "Navidad",
              "Halloween", "Grados", "Para ella", "Para él", "Regalo corporativo"]
@@ -151,6 +151,57 @@ async def interpretar(consulta: str) -> dict:
     return g
 
 
+_vec_http: Optional[httpx.AsyncClient] = None
+
+
+async def vector(texto: str) -> Optional[list]:
+    """Vector semántico de la consulta con el modelo gte-small que corre en Supabase (sin claves ni cupo diario)."""
+    global _vec_http
+    if not texto.strip():
+        return None
+    if _vec_http is None:
+        _vec_http = httpx.AsyncClient(timeout=10)
+    try:
+        r = await _vec_http.post(f"{SUPABASE_URL}/functions/v1/ia-impulsa", json={"textos": [texto[:300]]})
+        if r.status_code == 200:
+            v = r.json().get("vectores") or []
+            return v[0] if v else None
+    except Exception:
+        pass
+    return None
+
+
+# Umbrales de similitud del modelo gte-small (coseno). Calibrados con el catálogo de Impulsa.
+SIM_EXACTA = 0.86
+SIM_PARECIDA = 0.80
+
+
+async def explicar_gemini(consulta: str, termino: str, parecidos: list) -> Optional[str]:
+    """Con Gemini, redacta el aviso de "no hay, pero lo más parecido es…". Sin clave devuelve None."""
+    if not GEMINI_API_KEY or not parecidos:
+        return None
+    lista = "; ".join(f"{p['nombre']} de {p['emprendimiento']} ({pesos(p['precio'])})" for p in parecidos[:4])
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text":
+                    "Eres el buscador de Impulsa, directorio de emprendimientos de Ocaña, Colombia. "
+                    f"El cliente buscó: \"{consulta}\". No hay ningún producto exacto de eso. "
+                    f"Los más parecidos del catálogo son: {lista}. "
+                    "En máximo 2 frases cortas, en español colombiano y sin emojis: dile que por ahora no hay "
+                    f"{termino} y recomiéndale la opción más útil de la lista explicando en pocas palabras por qué. "
+                    "No inventes productos que no estén en la lista."}]}],
+                      "generationConfig": {"temperature": 0.4, "maxOutputTokens": 120}})
+        if r.status_code == 200:
+            t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            return t[:300] or None
+    except Exception:
+        pass
+    return None
+
+
 def pesos(n) -> str:
     return "$" + f"{int(n):,}".replace(",", ".")
 
@@ -186,6 +237,17 @@ def razones(p: dict, f: dict) -> list:
     if not p.get("agotado") and p.get("tipo") == "producto":
         r.append("Disponible ahora" if p.get("stock", 0) > 0 else "Lo hacen por encargo")
     return r[:3]
+
+
+def mensaje_sin_exacto(termino: str, parecidos: list) -> str:
+    if not parecidos:
+        return f"Por ahora no hay {termino} en Impulsa. Prueba con otras palabras o revisa las categorías."
+    m = parecidos[0]
+    txt = f"Por ahora no hay {termino} en Impulsa. Lo que más se parece es {m['nombre']} de {m['emprendimiento']} ({pesos(m['precio'])})"
+    otros = [p["nombre"][:1].lower() + p["nombre"][1:] for p in parecidos[1:3]]
+    if otros:
+        txt += ". También puedes mirar " + " o ".join(otros)
+    return txt + "."
 
 
 def mensaje(resultados: list, f: dict, ampliada: bool) -> str:
