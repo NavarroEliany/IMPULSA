@@ -285,6 +285,10 @@ _FAMILIAS = [
     (r"camisa|camiseta|pantalon|jean|vestido|falda|blusa|chaqueta|buzo|saco|ropa|pijama|gorra|bolso|cartera|"
      r"zapato|tenis|sandalia|bota|calzado|correa|cinturon",
      {"ropa-accesorios", "calzado", "artesanias"}),
+    (r"decoraci|adorno|vela|cojin|cuadro|matera|planta|jarron|florero|arbol de navidad|pesebre|guirnalda",
+     {"hogar-deco", "artesanias", "plantas", "regalos-flores", "eventos", "peluches-tejidos"}),
+    (r"clase|curso|tutor|profesor",
+     {"deportes", "papeleria", "bienestar"}),
     (r"perfume|colonia|maquillaje|labial|crema|shampoo|unas|manicure|pedicure|cejas|pestanas|cabello|corte|barba",
      {"belleza", "barberia", "bienestar"}),
 ]
@@ -645,7 +649,11 @@ async def textos_combos(combos: list, ocasion: Optional[str], para: Optional[str
 # --- Radar de demanda ------------------------------------------------------------------------
 def radar_local(r: dict, negocio: dict) -> list:
     ops = []
-    for s in (r.get("sin_oferta") or [])[:2]:
+    cat = negocio.get("categoria_slug")
+    # Sin Gemini: solo se recomienda lo que no sea claramente de otro rubro (a una artesana no le sirve "tacos").
+    afines = [s for s in (r.get("sin_oferta") or [])
+              if not (familia_de(s["consulta"]) and cat and cat not in familia_de(s["consulta"]))]
+    for s in afines[:2]:
         ops.append({"titulo": f"{s['n']} {'persona buscó' if s['n'] == 1 else 'personas buscaron'} “{s['consulta']}” y nadie lo vende",
                     "texto": "Si puedes ofrecerlo, publícalo aunque sea por encargo: serías la única opción en Impulsa.",
                     "accion": "Publicar producto", "enlace": "#/panel/producto/nuevo"})
