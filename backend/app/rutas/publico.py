@@ -137,7 +137,8 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
             if g:
                 resultados, mensaje = g
                 f["motor"] = "gemini"
-            else:
+            if not resultados:
+                # Si Gemini no eligió ninguno (o no respondió), se muestran los parecidos del mismo rubro.
                 resultados = ia.filtrar_parecidos(semantica, nucleo)
             mensaje = mensaje or ia.mensaje_sin_exacto(termino, resultados)
         if not resultados and not sin_exacto:

@@ -371,7 +371,7 @@ async def elegir_parecidos_gemini(consulta: str, termino: str, candidatos: list)
         "real a lo que pidió (máximo 4, del más útil al menos útil; lista vacía si ninguno tiene relación), y "
         '"mensaje": máximo 2 frases cortas en español colombiano, sin emojis, que digan que por ahora no hay '
         f"{termino} y recomienden la mejor alternativa elegida diciendo por qué (o que no hay nada parecido). "
-        "No inventes productos.", json_=True, temperatura=0.2, max_tokens=200)
+        "Tutea al cliente, no saludes y no inventes productos.", json_=True, temperatura=0.2, max_tokens=200, timeout=15)
     if not t:
         return None
     try:
@@ -529,7 +529,7 @@ async def mirar_foto(mime: str, datos_b64: str, categorias: list, texto_extra: s
         '"ocasion" (una de: ' + ", ".join(OCASIONES) + ' o null), '
         '"detalles" (lista de 2 o 3 rasgos que el cliente le puede pedir al emprendedor, ej. "dos pisos", "flores naturales"). '
         'Si la foto no muestra nada que se pueda comprar, responde {"veo": null}.',
-        json_=True, temperatura=0.2, max_tokens=300, timeout=20, imagen=(mime, datos_b64))
+        json_=True, temperatura=0.2, max_tokens=300, timeout=25, imagen=(mime, datos_b64))
     if not t:
         return None
     try:
@@ -666,7 +666,7 @@ async def textos_combos(combos: list, ocasion: Optional[str], para: Optional[str
         'Responde solo un JSON con "combos": una lista con un objeto por combo, en el mismo orden, con '
         '"nombre" (2 a 4 palabras creativas, sin emojis), "por_que" (1 o 2 frases cortas en español colombiano que expliquen '
         'por qué ese combo le sirve a esa persona) y "tarjeta" (mensaje cálido de máximo 20 palabras para escribir en la tarjeta '
-        "del regalo). No cambies productos ni precios.", json_=True, temperatura=0.7, max_tokens=700, timeout=15)
+        "del regalo). No cambies productos ni precios.", json_=True, temperatura=0.7, max_tokens=700, timeout=25)
     try:
         d = json.loads(t or "")
         lista_g = d.get("combos") if isinstance(d, dict) else None
@@ -731,7 +731,7 @@ async def radar_oportunidades(r: dict, negocio: dict) -> tuple:
         'búsqueda concreta), "texto" (1 o 2 frases con una acción concreta y realista para ESTE negocio; si una demanda no '
         'tiene relación con lo que vende, no la recomiendes), "accion" (una de: "Publicar producto", "Crear promoción", '
         '"Editar productos"). En español colombiano, sin emojis, sin inventar cifras.',
-        json_=True, temperatura=0.5, max_tokens=600, timeout=15)
+        json_=True, temperatura=0.5, max_tokens=600, timeout=25)
     enlaces = {"Publicar producto": "#/panel/producto/nuevo", "Crear promoción": "#/panel/promociones",
                "Editar productos": "#/panel/productos"}
     try:
