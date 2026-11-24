@@ -124,7 +124,7 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
                 resultados, mensaje = g
                 f["motor"] = "gemini"
             else:
-                mensaje = (f"Por ahora no hay {' ni '.join(faltan)} en Impulsa. Lo más cercano es {resultados[0]['nombre']} "
+                mensaje = (f"Aún nadie vende {' ni '.join(faltan)} dentro de Impulsa. Lo más cercano es {resultados[0]['nombre']} "
                            f"de {resultados[0]['emprendimiento']} ({ia.pesos(resultados[0]['precio'])}).")
         elif resultados:
             cat = resultados[0].get("categoria_id")
@@ -251,7 +251,8 @@ async def buscar_foto(d: BusquedaFoto, token: Optional[str] = Depends(sb.token_o
         res = await _buscar(Busqueda(q="", categoria=vio["categoria"], limite=24), token, f=dict(f, palabras=""))
         res["consulta"] = consulta
         res["sin_exacto"] = True
-        res["mensaje"] = "No encontré exactamente eso en Ocaña. Te muestro lo que hay en la misma categoría."
+        res["mensaje"] = (f"Aún nadie vende {vio['busqueda'] or 'eso'} dentro de Impulsa. "
+                          "Te muestro lo más parecido que hay en la misma categoría.")
     res["foto"] = vio
     return res
 

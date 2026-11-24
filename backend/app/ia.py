@@ -315,19 +315,21 @@ _FAMILIAS = [
      r"crepe|waffle|mondongo|sancocho|bandeja|chorizo|morcilla|tamal|arepa|empanad|pan\b|panes|panader|torta|ponque|postre|"
      r"helad|dulce|galleta|chocolate|fruta|jugo|bebida|gaseosa|cafe|te\b|aromatica|licor|vino|cerveza|ron\b|whisky|tequila",
      {"comidas-rapidas", "comida", "comida-tipica", "panaderia", "reposteria", "heladeria", "frutas-mercado",
-      "dulces-snacks", "cafe", "cervezas-licores"}),
+      "dulces-snacks", "cafe", "cervezas-licores", "mariscos", "saludable", "mexicana"}),
     (r"computador|portatil|laptop|tablet|celular|telefono|iphone|samsung|xiaomi|audifono|cargador|parlante|"
-     r"camara|consola|videojuego|televisor|tv|mouse|teclado|impresora|reloj inteligente|smartwatch",
-     {"tecnologia"}),
+     r"camara|consola|videojuego|televisor|tv|mouse|teclado|impresora|monitor|pc\b|reloj inteligente|smartwatch",
+     {"tecnologia", "computadores"}),
     (r"camisa|camiseta|pantalon|jean|vestido|falda|blusa|chaqueta|buzo|saco|ropa|pijama|gorra|bolso|cartera|"
      r"zapato|tenis|sandalia|bota|calzado|correa|cinturon",
-     {"ropa-accesorios", "calzado", "artesanias"}),
+     {"ropa-accesorios", "calzado", "artesanias", "bebes"}),
     (r"decoraci|adorno|vela|cojin|cuadro|matera|planta|jarron|florero|arbol de navidad|pesebre|guirnalda",
-     {"hogar-deco", "artesanias", "plantas", "regalos-flores", "eventos", "peluches-tejidos"}),
+     {"hogar-deco", "artesanias", "plantas", "regalos-flores", "eventos", "peluches-tejidos", "navidad", "muebles"}),
+    (r"moto|bicicleta|cicla|casco|llanta|repuesto|taller|carro|lavadero",
+     {"motos-bicis", "lavadero", "ferreteria"}),
     (r"clase|curso|tutor|profesor",
-     {"deportes", "papeleria", "bienestar"}),
+     {"deportes", "papeleria", "bienestar", "clases"}),
     (r"perfume|colonia|maquillaje|labial|crema|shampoo|unas|manicure|pedicure|cejas|pestanas|cabello|corte|barba",
-     {"belleza", "barberia", "bienestar"}),
+     {"belleza", "barberia", "bienestar", "perfumeria"}),
 ]
 
 
@@ -369,8 +371,9 @@ async def elegir_parecidos_gemini(consulta: str, termino: str, candidatos: list)
         f"El cliente buscó: \"{consulta}\". En el catálogo no hay nada exacto. Estos son candidatos parecidos:\n{lista}\n\n"
         'Responde solo un JSON con "indices": lista con los números de los candidatos que sí sirven como alternativa '
         "real a lo que pidió (máximo 4, del más útil al menos útil; lista vacía si ninguno tiene relación), y "
-        '"mensaje": máximo 2 frases cortas en español colombiano, sin emojis, que digan que por ahora no hay '
-        f"{termino} y recomienden la mejor alternativa elegida diciendo por qué (o que no hay nada parecido). "
+        '"mensaje": máximo 2 frases cortas en español colombiano, sin emojis. La primera frase debe decir exactamente '
+        f'"Aún nadie vende {termino} dentro de Impulsa." y la segunda recomienda la mejor alternativa elegida diciendo '
+        "por qué (o dice que tampoco hay algo parecido). "
         "Tutea al cliente, no saludes y no inventes productos.", json_=True, temperatura=0.2, max_tokens=200, timeout=15)
     if not t:
         return None
@@ -423,10 +426,11 @@ def razones(p: dict, f: dict) -> list:
 
 def mensaje_sin_exacto(termino: str, parecidos: list) -> str:
     if not parecidos:
-        return (f"Por ahora no hay {termino} en Impulsa ni algo parecido. Prueba con otras palabras "
+        return (f"Aún nadie vende {termino} dentro de Impulsa, y tampoco encontré algo parecido. Prueba con otras palabras "
                 "o revisa las categorías.")
     m = parecidos[0]
-    txt = f"Por ahora no hay {termino} en Impulsa. Lo que más se parece es {m['nombre']} de {m['emprendimiento']} ({pesos(m['precio'])})"
+    txt = (f"Aún nadie vende {termino} dentro de Impulsa. Esto es lo más parecido que hay en Ocaña: "
+           f"{m['nombre']} de {m['emprendimiento']} ({pesos(m['precio'])})")
     otros = [p["nombre"][:1].lower() + p["nombre"][1:] for p in parecidos[1:3]]
     if otros:
         txt += ". También puedes mirar " + " o ".join(otros)
