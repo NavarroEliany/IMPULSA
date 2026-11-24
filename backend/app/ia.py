@@ -100,6 +100,7 @@ def interpretar_local(consulta: str) -> dict:
 # Plan gratis: cupo por minuto y por día (se reinicia a medianoche del Pacífico, 3 a. m. en Colombia).
 # Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
 _gemini_pausa_hasta = 0.0
+_MODELOS = list(dict.fromkeys([GEMINI_MODEL, "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]))
 gemini_ultimo_error: Optional[str] = None   # para diagnóstico en /api/salud (nunca incluye la clave)
 _cache: dict = {}
 CACHE_SEG = 24 * 3600
@@ -152,15 +153,20 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
     if json_:
         config["responseMimeType"] = "application/json"
     try:
+        cuerpo = {"contents": [{"parts": ([{"inline_data": {"mime_type": imagen[0], "data": imagen[1]}}] if imagen else [])
+                                + [{"text": texto}]}], "generationConfig": config}
+        r = None
         async with httpx.AsyncClient(timeout=timeout) as c:
-            r = await c.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                json={"contents": [{"parts": ([{"inline_data": {"mime_type": imagen[0], "data": imagen[1]}}] if imagen else [])
-                                    + [{"text": texto}]}], "generationConfig": config})
+            # Si el modelo principal está saturado (503) o falla, se prueba con los de respaldo.
+            for modelo in _MODELOS:
+                r = await c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
+                                 headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo)
+                if r.status_code not in (500, 502, 503, 504, 404):
+                    break
         if r.status_code == 429:
             por_dia = "PerDay" in r.text or "per day" in r.text.lower()
             _gemini_pausa_hasta = _siguiente_reinicio() if por_dia else time.time() + 60
+            gemini_ultimo_error = "HTTP 429: sin cupo " + ("por hoy" if por_dia else "por este minuto")
             return None
         if r.status_code != 200:
             try:
