@@ -52,9 +52,11 @@ async def salud():
 
 
 @r.get("/salud/gemini", summary="Prueba una consulta corta a Gemini (diagnóstico)")
-async def salud_gemini():
+async def salud_gemini(modelos: bool = False):
+    if modelos:
+        return {"modelos": await ia.modelos_gemini()}
     t = await ia._gemini("Responde solo con la palabra: listo", max_tokens=20)
-    return {"respuesta": t, "error": ia.gemini_ultimo_error, "modelo": ia.GEMINI_MODEL}
+    return {"respuesta": t, "error": ia.gemini_ultimo_error, "modelos_en_orden": ia._MODELOS}
 
 
 @r.get("/inicio", summary="Datos de la página principal")

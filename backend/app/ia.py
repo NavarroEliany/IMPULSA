@@ -156,7 +156,7 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
     try:
         cuerpo = {"contents": [{"parts": ([{"inline_data": {"mime_type": imagen[0], "data": imagen[1]}}] if imagen else [])
                                 + [{"text": texto}]}], "generationConfig": config}
-        r = None
+        r, errores = None, []
         async with httpx.AsyncClient(timeout=timeout) as c:
             # Si el modelo principal está saturado (503) o falla, se prueba con los de respaldo.
             for modelo in _MODELOS:
@@ -164,10 +164,14 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
                     r = await c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
                                      headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo)
                 except httpx.TimeoutException:
-                    gemini_ultimo_error = f"{modelo}: tardó demasiado"
+                    errores.append(f"{modelo}: tardó demasiado")
+                    r = None
                     continue
                 if r.status_code not in (500, 502, 503, 504, 404):
                     break
+                errores.append(f"{modelo}: HTTP {r.status_code}")
+        if errores:
+            gemini_ultimo_error = " · ".join(errores)
         if r is None:
             return None
         if r.status_code == 429:
@@ -180,11 +184,11 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
                 msg = r.json().get("error", {}).get("message", "")
             except Exception:
                 msg = r.text
-            gemini_ultimo_error = f"HTTP {r.status_code}: {msg[:200]}"
+            gemini_ultimo_error = " · ".join(errores + [f"HTTP {r.status_code}: {msg[:160]}"])
             return None
         partes = r.json()["candidates"][0]["content"].get("parts") or []
         texto = "".join(p.get("text", "") for p in partes if not p.get("thought")).strip()
-        gemini_ultimo_error = None
+        gemini_ultimo_error = " · ".join(errores) or None
         if json_ and texto.startswith("```"):
             texto = texto.strip("`").removeprefix("json").strip()
         return texto or None
@@ -735,3 +739,16 @@ async def radar_oportunidades(r: dict, negocio: dict) -> tuple:
         return ops, "gemini"
     except Exception:
         return base, "local"
+
+
+async def modelos_gemini() -> list:
+    """Modelos que la clave puede usar para generar texto (diagnóstico)."""
+    if not GEMINI_API_KEY:
+        return []
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+                        headers={"x-goog-api-key": GEMINI_API_KEY})
+    if r.status_code != 200:
+        return [f"HTTP {r.status_code}"]
+    return [m["name"].removeprefix("models/") for m in r.json().get("models", [])
+            if "generateContent" in m.get("supportedGenerationMethods", [])]
