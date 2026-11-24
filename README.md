@@ -84,7 +84,7 @@ La cuenta de administrador es `admin@impulsa.demo` y su contraseña no está en 
 1. Entrar a https://render.com/deploy?repo=https://github.com/NavarroEliany/IMPULSA con la cuenta de GitHub.
 2. Pulsar **Apply**. Render lee `render.yaml`, instala las dependencias y publica el servicio.
 
-No hay variables que llenar. `GEMINI_API_KEY` es opcional: se crea gratis en Google AI Studio y se agrega en Render, en Environment. `GEMINI_MODEL` permite cambiar el modelo (por defecto `gemini-flash-latest`).
+No hay variables que llenar. `GEMINI_API_KEY` es opcional: se crea gratis en Google AI Studio y se agrega en Render, en Environment. `GEMINI_MODEL` permite cambiar el modelo (por defecto `gemini-flash-lite-latest`, con respaldo automático en otros modelos Flash si está saturado).
 
 ## Ejecutar en el computador
 

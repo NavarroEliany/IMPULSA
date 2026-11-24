@@ -100,7 +100,8 @@ def interpretar_local(consulta: str) -> dict:
 # Plan gratis: cupo por minuto y por día (se reinicia a medianoche del Pacífico, 3 a. m. en Colombia).
 # Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
 _gemini_pausa_hasta = 0.0
-_MODELOS = list(dict.fromkeys([GEMINI_MODEL, "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]))
+# Flash-Lite responde más rápido y tiene más cupo gratis; si está saturado se prueba con los demás.
+_MODELOS = list(dict.fromkeys([GEMINI_MODEL, "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.5-flash"]))
 gemini_ultimo_error: Optional[str] = None   # para diagnóstico en /api/salud (nunca incluye la clave)
 _cache: dict = {}
 CACHE_SEG = 24 * 3600
@@ -159,10 +160,16 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
         async with httpx.AsyncClient(timeout=timeout) as c:
             # Si el modelo principal está saturado (503) o falla, se prueba con los de respaldo.
             for modelo in _MODELOS:
-                r = await c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
-                                 headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo)
+                try:
+                    r = await c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
+                                     headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo)
+                except httpx.TimeoutException:
+                    gemini_ultimo_error = f"{modelo}: tardó demasiado"
+                    continue
                 if r.status_code not in (500, 502, 503, 504, 404):
                     break
+        if r is None:
+            return None
         if r.status_code == 429:
             por_dia = "PerDay" in r.text or "per day" in r.text.lower()
             _gemini_pausa_hasta = _siguiente_reinicio() if por_dia else time.time() + 60
