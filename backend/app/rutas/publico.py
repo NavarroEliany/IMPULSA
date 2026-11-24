@@ -114,17 +114,19 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
         if resultados and faltan and len(faltan) >= len(significativas):
             # Ninguna palabra importante aparece: lo encontrado por palabras es ruido.
             resultados = []
-        termino = nucleo if len(nucleo) <= 40 else "eso"
+        # Para el aviso se usa la frase del cliente tal cual si es corta ("alquiler de vestidos de gala").
+        frase = consulta.strip().rstrip("?.!").lower()
+        termino = frase if len(frase) <= 40 else (nucleo if len(nucleo) <= 40 else "eso")
         if resultados and faltan:
             # Coincide solo en parte: la IA elige entre lo encontrado y lo parecido, y avisa qué no hay.
             sin_exacto = True
             candidatos = resultados + [p for p in semantica if p["id"] not in {x["id"] for x in resultados}]
-            g = await ia.elegir_parecidos_gemini(consulta, " ni ".join(faltan), candidatos)
+            g = await ia.elegir_parecidos_gemini(consulta, termino, candidatos)
             if g and g[0]:
                 resultados, mensaje = g
                 f["motor"] = "gemini"
             else:
-                mensaje = (f"Aún nadie vende {' ni '.join(faltan)} dentro de Impulsa. Lo más cercano es {resultados[0]['nombre']} "
+                mensaje = (f"Aún nadie vende {termino} dentro de Impulsa. Lo más cercano es {resultados[0]['nombre']} "
                            f"de {resultados[0]['emprendimiento']} ({ia.pesos(resultados[0]['precio'])}).")
         elif resultados:
             cat = resultados[0].get("categoria_id")
