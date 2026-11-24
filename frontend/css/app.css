@@ -364,3 +364,14 @@ button.chip{cursor:pointer;transition:border-color .15s}button.chip.borde:hover{
   .nav:not(:has(.tabbar)){gap:10px;padding:12px 16px}
   .nav:not(:has(.tabbar)) .btn-s{padding:9px 13px;font-size:13px}
 }
+
+/* ---------- red de seguridad responsiva: nada se sale de la pantalla */
+.row>.crece,.row>*{min-width:0}
+.row>.crece b,.row>.crece span,.card b{overflow-wrap:anywhere}
+img,svg,video,canvas{max-width:100%}
+@media(max-width:480px){
+  .btn{white-space:normal;text-align:center;line-height:1.25}
+  form .btn[style*="align-self:flex-end"]{align-self:stretch!important}
+  .compo .flota{transform:scale(.75)}
+  .caja-cta,.caja-temp{padding:22px}
+}

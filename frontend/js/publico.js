@@ -85,10 +85,10 @@ ruta('/', async () => {
             <div class="col centro" style="background:#fff;color:var(--brasa);border-radius:12px;width:54px;padding:6px 0;line-height:1.1"><b style="font-family:var(--fd);font-size:20px">${a}</b><span style="font-size:10px;font-weight:600;letter-spacing:.06em">${b}</span></div>
             <div><b>${t}</b><div class="peq" style="opacity:.85">${x}</div></div></div>`).join('')}</div>
         <div style="background:var(--ink);color:var(--cream);flex-direction:row;flex-wrap:wrap;gap:32px">
-          <div class="col g20 crece ini" style="min-width:260px"><span class="min" style="letter-spacing:.1em;color:var(--oro)">CONTACTO DIRECTO</span><h3 class="d3">Y cierras el trato por WhatsApp.</h3>
+          <div class="col g20 crece ini" style="min-width:min(260px,100%)"><span class="min" style="letter-spacing:.1em;color:var(--oro)">CONTACTO DIRECTO</span><h3 class="d3">Y cierras el trato por WhatsApp.</h3>
             <p style="color:var(--sand);line-height:1.55">Sin intermediarios ni comisiones. Cada emprendimiento tiene su botón de WhatsApp, Instagram, TikTok y Facebook a un toque.</p>
             <a class="btn btn-wa" href="#/negocios">${ic('wa', '#fff')}Ver emprendimientos</a></div>
-          <div class="col g10" style="background:var(--noche);padding:20px;border-radius:24px;min-width:280px">
+          <div class="col g10" style="background:var(--noche);padding:20px;border-radius:24px;min-width:min(280px,100%)">
             <div class="burbuja" style="background:var(--waD);align-self:flex-end">Hola, te vi en Impulsa. ¿Tienes el osito tejido disponible?</div>
             <div class="burbuja" style="background:var(--char)">¡Hola! Sí, tengo 3. ¿Te lo envío hoy mismo?</div>
             <div class="burbuja" style="background:var(--waD);align-self:flex-end">Sí por favor, a San Agustín.</div></div></div>
@@ -102,13 +102,13 @@ ruta('/', async () => {
   </section>
 
   ${d.temporada?.length ? `<section class="wrap" style="padding-bottom:72px"><div class="row g32 envuelve caja-temp" style="background:var(--brasa);color:#fff">
-    <div class="col g20 crece ini" style="min-width:280px"><span class="chip brasa" style="background:#fff">${ic('gift')}Temporada navideña</span>
+    <div class="col g20 crece ini" style="min-width:min(280px,100%)"><span class="chip brasa" style="background:#fff">${ic('gift')}Temporada navideña</span>
       <h2 class="d2">Navidad está a ${navidad} días.</h2><p style="opacity:.92;line-height:1.55;max-width:380px">Activa tu calendario y te avisamos con ideas de regalo de emprendedores de tu ciudad, según tu presupuesto.</p>
       <a class="btn btn-d" href="#/registro">Activar recordatorios</a></div>
-    <div class="grid c3" style="flex:2;min-width:300px;color:var(--ink)">${d.temporada.map(p => tarjetaProducto(p)).join('')}</div></div></section>` : ''}
+    <div class="grid c3" style="flex:2;min-width:min(300px,100%);color:var(--ink)">${d.temporada.map(p => tarjetaProducto(p)).join('')}</div></div></section>` : ''}
 
   <section class="wrap" style="padding-bottom:96px"><div class="row g48 envuelve caja-cta" style="background:var(--ink);color:var(--cream)">
-    <div class="col g24 crece ini" style="min-width:300px"><span class="chip orof" style="color:var(--ink)">${ic('store')}Para emprendedores</span>
+    <div class="col g24 crece ini" style="min-width:min(300px,100%)"><span class="chip orof" style="color:var(--ink)">${ic('store')}Para emprendedores</span>
       <h2 class="d2">Tu emprendimiento merece <span class="serif" style="color:var(--oro);font-size:1.1em">más que tus seguidores.</span></h2>
       ${['Vitrina profesional con fotos, precios, ubicación y redes', 'Estadísticas: qué vendes más, qué días y en qué fechas', 'La IA te recomienda a clientes que ya buscan lo que haces'].map(t => `<div class="row g12"><span class="redondo" style="width:26px;height:26px;background:var(--brasa);border:0">${ic('check', '#fff', 'width:14px;height:14px')}</span>${t}</div>`).join('')}
       <a class="btn btn-p" href="#/registro?rol=emprendedor">Registrar mi emprendimiento gratis</a></div>

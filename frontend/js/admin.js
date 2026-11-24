@@ -180,11 +180,11 @@ ruta('/admin/contenido', async () => {
   estado.categorias = cats;
   const tipoSel = (v = 'producto') => `<select name="tipo" aria-label="Tipo"><option value="producto" ${v === 'producto' ? 'selected' : ''}>Productos</option><option value="servicio" ${v === 'servicio' ? 'selected' : ''}>Servicios</option></select>`;
   const filaCat = (c = {}) => `<form class="fila-ed" data-f="adm-cat"><input type="hidden" name="id" value="${c.id || ''}">
-    <input name="emoji" value="${esc(c.emoji || '✨')}" style="width:58px;text-align:center" aria-label="Emoji"><input name="nombre" value="${esc(c.nombre || '')}" placeholder="Nueva categoría" required style="flex:1;min-width:160px" aria-label="Nombre">
+    <input name="emoji" value="${esc(c.emoji || '✨')}" style="width:58px;text-align:center" aria-label="Emoji"><input name="nombre" value="${esc(c.nombre || '')}" placeholder="Nueva categoría" required style="flex:1;min-width:min(160px,100%)" aria-label="Nombre">
     ${tipoSel(c.tipo)}<input name="orden" type="number" value="${c.orden ?? ''}" placeholder="Orden" style="width:84px" aria-label="Orden">
     <button class="btn btn-d btn-s">${c.id ? 'Guardar' : ic('plus', '#fff') + 'Agregar'}</button>${c.id ? `<button type="button" class="redondo" style="width:40px;height:40px" data-a="adm-borrar-cat" data-id="${c.id}" aria-label="Borrar">${ic('trash')}</button>` : ''}</form>`;
   const filaFecha = (f = {}) => `<form class="fila-ed" data-f="adm-fecha"><input type="hidden" name="id" value="${f.id || ''}">
-    <input name="emoji" value="${esc(f.emoji || '🎁')}" style="width:58px;text-align:center" aria-label="Emoji"><input name="nombre" value="${esc(f.nombre || '')}" placeholder="Nueva fecha" required style="flex:1;min-width:150px" aria-label="Nombre">
+    <input name="emoji" value="${esc(f.emoji || '🎁')}" style="width:58px;text-align:center" aria-label="Emoji"><input name="nombre" value="${esc(f.nombre || '')}" placeholder="Nueva fecha" required style="flex:1;min-width:min(150px,100%)" aria-label="Nombre">
     <input name="dia" type="number" min="1" max="31" value="${f.dia || ''}" placeholder="Día" required style="width:72px" aria-label="Día">
     <select name="mes" aria-label="Mes">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${f.mes === i + 1 ? 'selected' : ''}>${mesN(i)}</option>`).join('')}</select>
     <input name="ocasion" value="${esc(f.ocasion || '')}" placeholder="Ocasión (ej. Navidad)" style="width:170px" aria-label="Ocasión">

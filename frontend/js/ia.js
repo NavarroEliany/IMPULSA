@@ -44,7 +44,7 @@ acciones.foto = () => {
 // Bloque que se muestra arriba de los resultados cuando la búsqueda vino de una foto.
 export const bloqueFoto = r => `<div class="row g16 ini envuelve" style="background:rgba(255,255,255,.06);border-radius:22px;padding:14px">
   <img src="${r.vista}" alt="Tu foto" style="width:96px;height:96px;object-fit:cover;border-radius:16px;flex:none">
-  <div class="col g6 crece" style="min-width:200px"><span class="peq" style="color:var(--oro)">La IA vio en tu foto:</span><b style="font-size:18px">${esc(r.foto.veo)}</b>
+  <div class="col g6 crece" style="min-width:min(200px,100%)"><span class="peq" style="color:var(--oro)">La IA vio en tu foto:</span><b style="font-size:18px">${esc(r.foto.veo)}</b>
     ${r.foto.detalles?.length ? `<span class="peq" style="color:var(--sand)">Pídele al emprendedor: ${r.foto.detalles.map(esc).join(' · ')}</span>` : ''}</div></div>`;
 
 // ---------- armador de regalos
