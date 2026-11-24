@@ -107,12 +107,25 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
                                          p_tipo=d.tipo, p_solo_disponibles=f["solo_disponibles"], p_limite=12) or []
             except HTTPException:
                 semantica = []
-        faltan = ia.terminos_faltantes(f["palabras"], resultados)
-        if resultados and faltan and len(faltan) < len(f["palabras"].split()):
-            # Coincide solo en parte: se muestra, pero se avisa qué no hay.
+        # Lo que el cliente escribió con sus palabras (Gemini agrega sinónimos y eso no debe contar).
+        nucleo = ia.interpretar_local(consulta)["palabras"] if consulta else f["palabras"]
+        faltan = ia.terminos_faltantes(nucleo, resultados)
+        significativas = [w for w in ia.terminos_faltantes(nucleo, [{"nombre": ""}])] or nucleo.split()
+        if resultados and faltan and len(faltan) >= len(significativas):
+            # Ninguna palabra importante aparece: lo encontrado por palabras es ruido.
+            resultados = []
+        termino = nucleo if len(nucleo) <= 40 else "eso"
+        if resultados and faltan:
+            # Coincide solo en parte: la IA elige entre lo encontrado y lo parecido, y avisa qué no hay.
             sin_exacto = True
-            mensaje = (f"Por ahora no hay {' ni '.join(faltan)} en Impulsa. Lo más cercano es {resultados[0]['nombre']} "
-                       f"de {resultados[0]['emprendimiento']} ({ia.pesos(resultados[0]['precio'])}).")
+            candidatos = resultados + [p for p in semantica if p["id"] not in {x["id"] for x in resultados}]
+            g = await ia.elegir_parecidos_gemini(consulta, " ni ".join(faltan), candidatos)
+            if g and g[0]:
+                resultados, mensaje = g
+                f["motor"] = "gemini"
+            else:
+                mensaje = (f"Por ahora no hay {' ni '.join(faltan)} en Impulsa. Lo más cercano es {resultados[0]['nombre']} "
+                           f"de {resultados[0]['emprendimiento']} ({ia.pesos(resultados[0]['precio'])}).")
         elif resultados:
             cat = resultados[0].get("categoria_id")
             vistos = {p["id"] for p in resultados}
@@ -120,13 +133,12 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
                            and p.get("categoria_id") == cat]
         elif semantica:
             sin_exacto = True
-            termino = f["palabras"] if len(f["palabras"]) <= 40 else "eso"
             g = await ia.elegir_parecidos_gemini(consulta, termino, semantica)
             if g:
                 resultados, mensaje = g
                 f["motor"] = "gemini"
             else:
-                resultados = ia.filtrar_parecidos(semantica, f["palabras"])
+                resultados = ia.filtrar_parecidos(semantica, nucleo)
             mensaje = mensaje or ia.mensaje_sin_exacto(termino, resultados)
         if not resultados and not sin_exacto:
             # Sin vectores disponibles: se muestran las mejores opciones que cumplen el resto de filtros.

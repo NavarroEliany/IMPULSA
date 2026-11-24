@@ -7,7 +7,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_Pb-op7O6WMzHbi43NT1W9g_
 
 # Opcional: si se define, la búsqueda usa Gemini para interpretar lo que escribe el cliente.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 # Render la define sola; con ella el backend se registra para que Supabase lo mantenga despierto.
 URL_PUBLICA = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")

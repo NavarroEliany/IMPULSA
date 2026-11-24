@@ -101,7 +101,7 @@ def interpretar_local(consulta: str) -> dict:
 # Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
 _gemini_pausa_hasta = 0.0
 # Flash-Lite responde más rápido y tiene más cupo gratis; si está saturado se prueba con los demás.
-_MODELOS = list(dict.fromkeys([GEMINI_MODEL, "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.5-flash"]))
+_MODELOS = list(dict.fromkeys([GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-lite-latest", "gemini-flash-latest"]))
 gemini_ultimo_error: Optional[str] = None   # para diagnóstico en /api/salud (nunca incluye la clave)
 _cache: dict = {}
 CACHE_SEG = 24 * 3600
@@ -159,10 +159,16 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
         r, errores = None, []
         async with httpx.AsyncClient(timeout=timeout) as c:
             # Si el modelo principal está saturado (503) o falla, se prueba con los de respaldo.
+            limite = time.time() + timeout * 1.6       # tiempo total para todos los intentos
             for modelo in _MODELOS:
+                restante = limite - time.time()
+                if restante < 2:
+                    errores.append("sin tiempo para más modelos")
+                    break
                 try:
                     r = await c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
-                                     headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo)
+                                     headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}, json=cuerpo,
+                                     timeout=min(timeout, restante))
                 except httpx.TimeoutException:
                     errores.append(f"{modelo}: tardó demasiado")
                     r = None
