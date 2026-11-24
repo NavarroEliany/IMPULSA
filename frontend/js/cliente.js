@@ -38,7 +38,7 @@ ruta('/inicio', async () => {
     <a class="btn btn-p" href="#/calendario?nuevo=1" style="margin-top:auto">Agregar una fecha</a></div>`);
   const fr = d.frecuente;
   return conNav(`<main class="wrap pag">
-    <section class="row fin g24 envuelve"><div class="col g4 crece" style="min-width:min(300px,100%)"><span class="peq sua neg" style="text-transform:capitalize">${hoy} · ${esc(p.barrio || 'Ocaña')}</span>
+    <section class="row g32 envuelve saludo-c"><div class="col g8 crece" style="min-width:min(300px,100%)"><span class="peq sua neg" style="text-transform:capitalize">${hoy} · ${esc(p.barrio || 'Ocaña')}</span>
       <h1 class="d2" style="font-size:clamp(36px,4.6vw,56px)">${h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'}, ${esc(p.nombre)}.<br><span class="serif">esto te va a encantar hoy.</span></h1></div>
       <div class="col g16" style="background:var(--ink);border-radius:30px;padding:26px;width:600px;max-width:100%">
         <span class="row g8 peq neg" style="color:var(--oro)">${ic('spark')}Tu asistente Impulsa</span>

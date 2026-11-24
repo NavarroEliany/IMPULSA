@@ -138,7 +138,7 @@ button.chip{cursor:pointer;transition:border-color .15s}button.chip.borde:hover{
 .seg button{flex:1;padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px;display:flex;gap:8px;justify-content:center;align-items:center}.seg button.on{background:var(--ink);color:#fff}
 
 /* cliente */
-.pag{padding:24px 0 80px;display:flex;flex-direction:column;gap:56px}
+.pag{padding-top:24px;padding-bottom:80px;display:flex;flex-direction:column;gap:56px}
 .momento{border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:16px;min-width:0}
 .mini{display:flex;gap:12px;align-items:center;padding:10px;border-radius:16px;background:#fff;color:var(--ink)}
 .mini .th{width:50px;height:50px;border-radius:12px;background:var(--sand) center/cover;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px}
