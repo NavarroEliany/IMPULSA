@@ -47,7 +47,14 @@ class Contacto(BaseModel):
 async def salud():
     estado_gemini = "activo" if ia.gemini_disponible() else ("sin cupo por hoy" if GEMINI_API_KEY else "sin clave")
     return {"ok": True, "servicio": "impulsa", "ia": "gemini" if ia.gemini_disponible() else "local",
-            "busqueda_semantica": "gte-small (Supabase)", "gemini": estado_gemini}
+            "busqueda_semantica": "gte-small (Supabase)", "gemini": estado_gemini, "modelo": ia.GEMINI_MODEL,
+            "gemini_ultimo_error": ia.gemini_ultimo_error}
+
+
+@r.get("/salud/gemini", summary="Prueba una consulta corta a Gemini (diagnóstico)")
+async def salud_gemini():
+    t = await ia._gemini("Responde solo con la palabra: listo", max_tokens=20)
+    return {"respuesta": t, "error": ia.gemini_ultimo_error, "modelo": ia.GEMINI_MODEL}
 
 
 @r.get("/inicio", summary="Datos de la página principal")

@@ -100,6 +100,7 @@ def interpretar_local(consulta: str) -> dict:
 # Plan gratis: cupo por minuto y por día (se reinicia a medianoche del Pacífico, 3 a. m. en Colombia).
 # Si Google responde que se acabó el cupo, se deja de llamar hasta el reinicio y todo sigue con la IA local.
 _gemini_pausa_hasta = 0.0
+gemini_ultimo_error: Optional[str] = None   # para diagnóstico en /api/salud (nunca incluye la clave)
 _cache: dict = {}
 CACHE_SEG = 24 * 3600
 
@@ -141,11 +142,13 @@ def gemini_disponible() -> bool:
 
 async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, max_tokens: int = 256,
                   timeout: float = 10, imagen: Optional[tuple] = None) -> Optional[str]:
-    global _gemini_pausa_hasta
+    global _gemini_pausa_hasta, gemini_ultimo_error
     if not gemini_disponible():
         return None
     import time
-    config = {"temperature": temperatura, "maxOutputTokens": max_tokens}
+    # Los modelos Flash recientes "piensan" antes de responder y ese razonamiento gasta tokens de salida:
+    # se deja margen para que la respuesta no salga vacía.
+    config = {"temperature": temperatura, "maxOutputTokens": max_tokens + 2048}
     if json_:
         config["responseMimeType"] = "application/json"
     try:
@@ -160,9 +163,20 @@ async def _gemini(texto: str, *, json_: bool = False, temperatura: float = 0.2, 
             _gemini_pausa_hasta = _siguiente_reinicio() if por_dia else time.time() + 60
             return None
         if r.status_code != 200:
+            try:
+                msg = r.json().get("error", {}).get("message", "")
+            except Exception:
+                msg = r.text
+            gemini_ultimo_error = f"HTTP {r.status_code}: {msg[:200]}"
             return None
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except Exception:
+        partes = r.json()["candidates"][0]["content"].get("parts") or []
+        texto = "".join(p.get("text", "") for p in partes if not p.get("thought")).strip()
+        gemini_ultimo_error = None
+        if json_ and texto.startswith("```"):
+            texto = texto.strip("`").removeprefix("json").strip()
+        return texto or None
+    except Exception as e:
+        gemini_ultimo_error = f"{type(e).__name__}: {str(e)[:200]}"
         return None
 
 
