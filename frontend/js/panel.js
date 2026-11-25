@@ -1,7 +1,7 @@
 // Panel del emprendedor: estadísticas, productos, contactos, reseñas, promociones y datos del negocio.
 import { api, estado, cargarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
-import { ic, esc, pesos, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir, tarjetaCatalogo } from './ui.js';
+import { ic, esc, pesos, precioDe, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir, tarjetaCatalogo } from './ui.js';
 
 const OCASIONES = ['Cumpleaños', 'Aniversario', 'Amor y Amistad', 'Día de la Madre', 'Día del Padre', 'Navidad', 'Halloween', 'Grados', 'Para ella', 'Para él', 'Regalo corporativo'];
 const PAGOS = ['Nequi', 'Daviplata', 'Transferencia Bancolombia', 'Efectivo', 'Tarjeta', 'Llave Bre-B'];
@@ -120,14 +120,15 @@ ruta('/panel', async () => {
 // ---------- productos e inventario
 ruta('/panel/productos', async () => {
   if (!permitido()) return null;
-  const lista = await api('/panel/productos'), esperan = lista.filter(p => p.esperando > 0);
+  const todos = await api('/panel/productos'), filtroCat = nucleo.consulta().get('cat');
+  const lista = filtroCat ? todos.filter(p => p.catalogo_id === filtroCat) : todos, esperan = lista.filter(p => p.esperando > 0);
   const estadoDe = p => !p.activo ? ['Oculto', 'crema'] : p.tipo === 'servicio' ? ['Activo', 'salvia'] : p.stock === 0 ? [p.por_encargo ? 'Por encargo' : 'Agotado', p.por_encargo ? 'oro' : 'brasa'] : p.stock <= p.stock_minimo ? ['Poco stock', 'oro'] : ['Activo', 'salvia'];
-  return marco('#/panel/productos', `${titulo('Mis productos', `${lista.length} productos y servicios · ${lista.filter(p => p.tipo === 'producto' && p.stock === 0 && !p.por_encargo).length} agotados`, nuevoBtn)}
+  return marco('#/panel/productos', `${titulo('Mis productos', `${filtroCat ? 'Leídos de tu catálogo · <a href="#/panel/productos" style="color:var(--brasa)">ver todos</a> · ' : ''}${lista.length} productos y servicios · ${lista.filter(p => p.tipo === 'producto' && p.stock === 0 && !p.por_encargo).length} agotados`, nuevoBtn)}
     ${esperan.map(p => `<div class="row g12 envuelve" style="background:var(--brasaS);padding:18px;border-radius:20px"><span class="redondo" style="background:var(--brasa);border:0;border-radius:12px">${ic('bell', '#fff')}</span>
       <div class="crece" style="min-width:min(220px,100%)"><b>${p.esperando} ${p.esperando === 1 ? 'persona espera' : 'personas esperan'} tu ${esc(p.nombre)}</b><div class="peq">Pidieron “Avísame cuando vuelva”. Actualiza el stock aquí abajo y les llega la notificación al instante.</div></div></div>`).join('')}
     ${lista.length ? `<div class="card" style="padding:0;overflow:auto"><table class="tabla"><thead><tr><th>Producto</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Visitas</th><th>Clics WhatsApp</th><th>Visible</th><th></th></tr></thead><tbody>
-      ${lista.map(p => { const [et, col] = estadoDe(p); return `<tr><td><a class="row g12" href="#/panel/producto/${p.id}">${th(p.imagenes[0], p.tipo === 'servicio' ? '🗓️' : '📦')}<div><b>${esc(p.nombre)}</b><div class="min sua">${p.tipo === 'servicio' ? 'Servicio' : 'Producto'}${p.esperando ? ` · ${p.esperando} esperando` : ''}</div></div></a></td>
-        <td><b>${pesos(p.precio)}</b></td>
+      ${lista.map(p => { const [et, col] = estadoDe(p); return `<tr><td><a class="row g12" href="#/panel/producto/${p.id}">${th(p.imagenes[0], p.tipo === 'servicio' ? '🗓️' : '📦')}<div><b>${esc(p.nombre)}</b><div class="min sua">${p.tipo === 'servicio' ? 'Servicio' : 'Producto'}${p.catalogo_id ? ' · del catálogo' + (p.catalogo_pagina ? ', pág. ' + p.catalogo_pagina : '') : ''}${p.esperando ? ` · ${p.esperando} esperando` : ''}</div></div></a></td>
+        <td><b>${precioDe(p)}</b></td>
         <td>${p.tipo === 'servicio' ? '<span class="sua">—</span>' : `<form class="row g6" data-f="stock"><input type="hidden" name="id" value="${p.id}"><input name="stock" type="number" min="0" value="${p.stock}" style="width:74px;height:40px;border-radius:12px;border:1px solid var(--sand);padding:0 10px" aria-label="Stock"><button class="redondo" style="width:40px;height:40px" aria-label="Guardar stock">${ic('check')}</button></form>`}</td>
         <td><span class="chip ${col}">${et}</span></td><td>${p.visitas}</td><td>${p.clics}</td>
         <td><button class="interruptor ${p.activo ? 'on' : ''}" data-a="visible" data-id="${p.id}" data-v="${p.activo ? 1 : 0}" aria-label="Visible"></button></td>
@@ -241,8 +242,9 @@ let modoCat = 'archivo';
 ruta('/panel/catalogos', async () => {
   if (!permitido()) return null;
   const lista = await api('/panel/catalogos');
+  vigilarCatalogos(lista);
   const archivo = modoCat === 'archivo';
-  return marco('#/panel/catalogos', `${titulo('Catálogos', 'Sube los catálogos que ya tienes hechos. Aparecen en tu perfil público para que los clientes los vean o descarguen.')}
+  return marco('#/panel/catalogos', `${titulo('Catálogos', 'Sube los catálogos que ya tienes hechos. Aparecen en tu perfil y la IA los lee: cada producto del PDF queda en las búsquedas, con la página donde aparece.')}
     <div class="row ini g20 dos">
       <form class="card col g16" data-f="catalogo" style="width:420px;flex:none">
         <h3 class="d4">Agregar un catálogo</h3>
@@ -284,11 +286,21 @@ formularios.catalogo = async (f, d) => {
     finally { boton.innerHTML = antes; }
   } else if (!/^https:\/\//i.test(url)) throw new Error('El enlace debe empezar por https://');
   await api('/panel/catalogos', { metodo: 'POST', cuerpo: { titulo: d.titulo.trim(), tipo, url } });
-  avisar('Catálogo publicado en tu perfil');
+  avisar('Catálogo publicado. La IA lo está leyendo para que sus productos salgan en las búsquedas');
   nucleo.repintar();
 };
+acciones['releer-cat'] = async el => {
+  await api('/panel/catalogos/' + el.dataset.id + '/leer', { metodo: 'POST' });
+  avisar('La IA está volviendo a leer el catálogo'); nucleo.repintar();
+};
+// Mientras la IA lee un catálogo, la página se actualiza sola.
+let relojCat = null;
+function vigilarCatalogos(lista) {
+  clearTimeout(relojCat);
+  if (lista.some(c => c.estado === 'leyendo')) relojCat = setTimeout(() => { if (location.hash.startsWith('#/panel/catalogos')) nucleo.repintar(); }, 6000);
+}
 acciones['borrar-cat'] = async el => {
-  if (!confirm('¿Quitar este catálogo de tu perfil?')) return;
+  if (!confirm('¿Quitar este catálogo de tu perfil? También se quitan los productos que la IA leyó de él.')) return;
   await api('/panel/catalogos/' + el.dataset.id, { metodo: 'DELETE' });
   avisar('Catálogo quitado'); nucleo.repintar();
 };

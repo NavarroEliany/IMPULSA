@@ -42,6 +42,9 @@ export const ic = (n, color = 'currentColor', estilo = '') => F[n]
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const pesos = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+// Los productos leídos de un catálogo sin precio quedan en 0: se muestran como «a consultar».
+export const precioDe = p => Number(p.precio) > 0 ? pesos(p.precio) : 'Precio a consultar';
+export const deCatalogo = p => p.catalogo_id ? `<span class="del-cat">${ic('file', 'currentColor', 'width:12px;height:12px')}Del catálogo${p.catalogo_pagina ? ' · pág. ' + p.catalogo_pagina : ''}</span>` : '';
 export const corto = n => n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace('.', ',') + ' M' : pesos(n);
 export const num = n => String(n ?? 0).replace('.', ',');
 export const iniciales = s => String(s || '?').replace(/\b(de|del|la|el|y|&)\b/gi, '').trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase();
@@ -84,8 +87,8 @@ export function tarjetaProducto(p, origen = 'perfil') {
     ${foto(p).replace('</div>', velo + '</div>')}
     <div class="cuerpo">
       <span class="neg-n">${esc(p.emprendimiento)}${p.emp_verificado ? ic('vfy', '#EF5A2A', 'width:12px;height:12px') : ''}</span>
-      <h4>${esc(p.nombre)}</h4>
-      <div class="row entre" style="margin-top:auto"><span class="precio">${pesos(p.precio)}${p.precio_antes ? `<span class="antes">${pesos(p.precio_antes)}</span>` : ''}</span>
+      <h4>${esc(p.nombre)}</h4>${deCatalogo(p)}
+      <div class="row entre" style="margin-top:auto"><span class="precio">${precioDe(p)}${p.precio_antes ? `<span class="antes">${pesos(p.precio_antes)}</span>` : ''}</span>
       ${p.num_resenas ? `<span class="est">${ic('star', '#F4B73F')}${num(p.calificacion)}<span class="sua" style="font-weight:400">(${p.num_resenas})</span></span>` : ''}</div>
     </div></a>`;
 }
@@ -122,7 +125,19 @@ export function tarjetaCatalogo(c, borrar = false) {
       ${c.tipo === 'imagen' ? '' : `<span class="cat-ic">${ic(icono, 'currentColor')}</span><b>${esc(etq)}</b>`}</a>
     <div class="row g8" style="padding:14px 16px"><div class="crece"><b style="font-size:15px">${esc(c.titulo)}</b><div class="min sua">${esc(etq)} · ${hace(c.creado_en)}</div></div>
       ${borrar ? `<button class="redondo" style="width:36px;height:36px" data-a="borrar-cat" data-id="${c.id}" aria-label="Quitar catálogo">${ic('trash')}</button>`
-        : `<a class="btn btn-g btn-s" href="${esc(c.url)}" target="_blank" rel="noopener">${ic('ext')}Ver</a>`}</div></div>`;
+        : `<a class="btn btn-g btn-s" href="${esc(c.url)}" target="_blank" rel="noopener">${ic('ext')}Ver</a>`}</div>
+    ${borrar ? estadoCatalogo(c) : ''}</div>`;
+}
+// Lo que la IA sacó del catálogo, visible solo para el emprendedor.
+function estadoCatalogo(c) {
+  const [txt, cls] = c.estado === 'leyendo' ? ['La IA está leyendo tu catálogo…', 'oro']
+    : c.estado === 'listo' ? [`${c.encontrados} ${c.encontrados === 1 ? 'producto encontrado' : 'productos encontrados'} · ya aparecen en las búsquedas`, 'salvia']
+    : c.estado === 'sin_productos' ? ['No encontramos productos en este catálogo', 'brasa']
+    : c.estado === 'no_se_pudo' ? ['No se pudo leer', 'brasa'] : ['Aún no se ha leído', 'crema'];
+  return `<div class="col g8" style="padding:0 16px 16px"><span class="chip ${cls}" style="align-self:flex-start;white-space:normal">${c.estado === 'leyendo' ? '' : ic('spark', 'currentColor', 'width:12px;height:12px')}${txt}</span>
+    ${c.nota ? `<span class="min sua">${esc(c.nota)}</span>` : ''}
+    <div class="row g8 envuelve">${c.estado === 'listo' ? `<a class="btn btn-g btn-s" href="#/panel/productos?cat=${c.id}">${ic('pkg')}Ver y editar</a>` : ''}
+      ${c.estado !== 'leyendo' ? `<button class="btn btn-g btn-s" data-a="releer-cat" data-id="${c.id}">${ic('spark')}Volver a leer</button>` : ''}</div></div>`;
 }
 
 export function avisar(texto, mal = false) {

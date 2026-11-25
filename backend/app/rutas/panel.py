@@ -2,7 +2,10 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+import re
+
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from .. import ia, sb
@@ -327,14 +330,86 @@ async def subir_catalogo(archivo: UploadFile = File(...), token: str = Depends(s
             "tipo": "pdf" if tipo == "application/pdf" else "imagen", "peso": len(datos)}
 
 
-@r.post("/catalogos", summary="Publicar un catálogo")
-async def crear_catalogo(d: Catalogo, token: str = Depends(sb.token_requerido)):
+@r.post("/catalogos", summary="Publicar un catálogo (la IA lo lee y vuelve buscables sus productos)")
+async def crear_catalogo(d: Catalogo, tareas: BackgroundTasks, token: str = Depends(sb.token_requerido)):
     n = await mi_negocio(token)
     ya = await sb.leer("catalogos", token, select="id", emprendimiento_id=f"eq.{n['id']}")
     if len(ya) >= 12:
         raise HTTPException(400, "Puedes tener hasta 12 catálogos. Borra uno viejo para subir otro.")
-    return await sb.crear("catalogos", {"emprendimiento_id": n["id"], "titulo": d.titulo.strip(), "tipo": d.tipo,
-                                        "url": d.url.strip(), "orden": len(ya)}, token)
+    c = await sb.crear("catalogos", {"emprendimiento_id": n["id"], "titulo": d.titulo.strip(), "tipo": d.tipo,
+                                     "url": d.url.strip(), "orden": len(ya), "estado": "leyendo"}, token)
+    c = c[0] if isinstance(c, list) else c
+    tareas.add_task(procesar_catalogo, c, n, token)
+    return c
+
+
+@r.post("/catalogos/{catalogo_id}/leer", summary="Volver a leer un catálogo con la IA")
+async def releer_catalogo(catalogo_id: str, tareas: BackgroundTasks, token: str = Depends(sb.token_requerido)):
+    n = await mi_negocio(token)
+    c = await sb.uno("catalogos", token, id=f"eq.{catalogo_id}", emprendimiento_id=f"eq.{n['id']}")
+    if not c:
+        raise HTTPException(404, "No encontramos ese catálogo")
+    await sb.cambiar("catalogos", {"id": f"eq.{catalogo_id}"}, {"estado": "leyendo", "nota": None}, token)
+    tareas.add_task(procesar_catalogo, c, n, token)
+    return {"ok": True}
+
+
+def _enlace_descargable(url: str) -> str:
+    """Los enlaces de Google Drive se cambian por su descarga directa; el resto se intenta tal cual."""
+    m = re.search(r"drive\.google\.com/(?:file/d/|open\?id=|uc\?.*id=)([\w-]{10,})", url)
+    return f"https://drive.google.com/uc?export=download&id={m.group(1)}" if m else url
+
+
+async def _descargar_catalogo(c: dict) -> tuple:
+    async with httpx.AsyncClient(timeout=40, follow_redirects=True) as h:
+        r = await h.get(_enlace_descargable(c["url"]), headers={"User-Agent": "Impulsa/1.0"})
+    if r.status_code != 200:
+        return None, None
+    datos = r.content
+    if datos[:5] == b"%PDF-":
+        return datos, "application/pdf"
+    tipo = r.headers.get("content-type", "").split(";")[0].strip().lower()
+    if tipo in ("image/jpeg", "image/png", "image/webp"):
+        return datos, tipo
+    return None, None
+
+
+async def procesar_catalogo(c: dict, negocio: dict, token: str) -> None:
+    """Lee el catálogo y publica cada producto encontrado, enlazado a la página del catálogo donde aparece.
+    Así entran a la búsqueda por palabras y por significado como cualquier otro producto."""
+    estado = {"estado": "no_se_pudo", "encontrados": 0, "nota": None}
+    try:
+        datos, mime = await _descargar_catalogo(c)
+        if not datos:
+            estado["nota"] = ("No pudimos abrir el archivo de este enlace. Si es de Canva o Instagram, descárgalo como PDF "
+                              "y súbelo en «Subir archivo» para que la IA pueda leerlo.")
+        elif len(datos) > 20 * 1024 * 1024:
+            estado["nota"] = "El archivo pesa más de 20 MB. Descárgalo como «PDF estándar» y vuelve a subirlo."
+        else:
+            cats = await sb.leer("categorias", None, select="id,slug")
+            por_slug = {x["slug"]: x["id"] for x in cats}
+            items, motor, nota = await ia.leer_catalogo(datos, mime, negocio.get("nombre", ""), list(por_slug))
+            estado["nota"] = nota
+            if items:
+                await sb.borrar("productos", {"catalogo_id": f"eq.{c['id']}"}, token)
+                filas = [{"emprendimiento_id": negocio["id"], "catalogo_id": c["id"], "catalogo_pagina": it["pagina"],
+                          "nombre": it["nombre"],
+                          "descripcion": it["descripcion"] or f"Aparece en el catálogo «{c['titulo']}»",
+                          "tipo": it["tipo"], "categoria_id": por_slug.get(it["categoria"]) or negocio.get("categoria_id"),
+                          "precio": it["precio"], "stock": 10, "stock_minimo": 0, "etiquetas": it["etiquetas"],
+                          "activo": True} for it in items]
+                await sb.crear("productos", filas, token, devolver=False)
+                estado.update(estado="listo", encontrados=len(filas))
+            elif motor is not None:
+                estado["estado"] = "sin_productos"
+    except Exception as e:  # noqa: BLE001 - el emprendedor ve el aviso y puede volver a intentarlo
+        estado["nota"] = f"Algo falló al leer el catálogo ({type(e).__name__}). Vuelve a intentarlo."
+    from datetime import datetime, timezone
+    estado["leido_en"] = datetime.now(timezone.utc).isoformat()
+    try:
+        await sb.cambiar("catalogos", {"id": f"eq.{c['id']}"}, estado, token)
+    except Exception:
+        pass
 
 
 @r.delete("/catalogos/{catalogo_id}", summary="Quitar un catálogo")

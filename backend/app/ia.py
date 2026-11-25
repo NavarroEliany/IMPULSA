@@ -551,6 +551,123 @@ async def mirar_foto(mime: str, datos_b64: str, categorias: list, texto_extra: s
     return res
 
 
+# --- Catálogos: leer el PDF o la imagen y volver buscable lo que hay adentro ------------------
+_PRECIO_RE = re.compile(r"\$\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,7})")
+
+
+def texto_pdf(datos: bytes, max_paginas: int = 40) -> list:
+    """Texto de cada página de un PDF. Los PDF escaneados o exportados como imagen devuelven páginas vacías."""
+    import io
+    try:
+        from pypdf import PdfReader
+        lector = PdfReader(io.BytesIO(datos))
+    except Exception:
+        return []
+    paginas = []
+    for pag in lector.pages[:max_paginas]:
+        try:
+            paginas.append((pag.extract_text() or "").strip())
+        except Exception:
+            paginas.append("")
+    return paginas
+
+
+def items_locales(paginas: list) -> list:
+    """Respaldo sin Gemini: arma productos con las líneas que traen precio ("Mochila wayuu ... $85.000").
+    Si el precio va en su propia línea, el nombre es la línea corta anterior y la descripción, la línea larga."""
+    items, vistos = [], set()
+    for n, texto in enumerate(paginas, 1):
+        bloque = []
+        for linea in [l.strip() for l in texto.splitlines() if l.strip()]:
+            m = _PRECIO_RE.search(linea)
+            if not m:
+                bloque.append(linea)
+                continue
+            resto = re.sub(r"\s+", " ", _PRECIO_RE.sub("", linea)).strip(" -–:·.|\t")
+            largas = [l for l in bloque if len(l) > 60]
+            cortas = [l for l in bloque if len(l) <= 60]
+            nombre = resto if len(resto) >= 3 else (cortas[-1] if cortas else "")
+            descripcion = " ".join(largas)[:400] if nombre != resto or len(resto) < 3 else ""
+            bloque = []
+            clave = _plano(nombre)
+            if len(nombre) < 3 or clave in vistos:
+                continue
+            vistos.add(clave)
+            items.append({"nombre": nombre[:90], "descripcion": descripcion, "precio": int(re.sub(r"[.,]", "", m.group(1))),
+                          "pagina": n, "tipo": "producto", "categoria": None, "etiquetas": []})
+    return items[:60]
+
+
+def _limpiar_items(crudo, categorias: list, max_paginas: int) -> list:
+    if isinstance(crudo, dict):
+        crudo = crudo.get("productos") or crudo.get("items") or []
+    if not isinstance(crudo, list):
+        return []
+    items, vistos = [], set()
+    for x in crudo:
+        if not isinstance(x, dict) or not str(x.get("nombre") or "").strip():
+            continue
+        nombre = re.sub(r"\s+", " ", str(x["nombre"])).strip()[:90]
+        if _plano(nombre) in vistos:
+            continue
+        vistos.add(_plano(nombre))
+        v = x.get("precio")
+        try:
+            precio = int(v) if isinstance(v, (int, float)) else int(re.sub(r"[^\d]", "", str(v or "")) or 0)
+        except (TypeError, ValueError):
+            precio = 0
+        try:
+            pagina = int(x.get("pagina") or 0) or None
+        except (TypeError, ValueError):
+            pagina = None
+        items.append({"nombre": nombre, "descripcion": str(x.get("descripcion") or "").strip()[:400],
+                      "precio": max(0, min(precio, 50_000_000)),
+                      "pagina": pagina if pagina and pagina <= max_paginas else None,
+                      "tipo": "servicio" if x.get("tipo") == "servicio" else "producto",
+                      "categoria": x.get("categoria") if x.get("categoria") in categorias else None,
+                      "etiquetas": [str(e).strip().lower()[:30] for e in (x.get("etiquetas") or []) if str(e).strip()][:6]})
+    return items[:60]
+
+
+async def leer_catalogo(datos: bytes, mime: str, negocio: str, categorias: list) -> tuple:
+    """Convierte un catálogo en una lista de productos. Devuelve (items, motor, nota).
+    Si el PDF trae texto, Gemini lo ordena; si es escaneado o una imagen, Gemini lo lee mirando las páginas."""
+    import base64
+    paginas = texto_pdf(datos) if mime == "application/pdf" else []
+    con_texto = sum(len(p) for p in paginas) > 150
+    total_pag = len(paginas) or 40
+    instruccion = (
+        f"Este es el catálogo del negocio \"{negocio}\" de Ocaña, Colombia. Extrae cada producto o servicio que se ofrece "
+        "para que los clientes lo puedan encontrar en un buscador. Responde solo un JSON con la lista \"productos\"; cada uno con: "
+        "\"nombre\" (corto y claro, como lo buscaría un cliente), \"descripcion\" (una o dos frases con lo que dice el catálogo: "
+        "tamaño, material, sabores, qué incluye), \"precio\" (entero en pesos colombianos, o null si no aparece), "
+        "\"pagina\" (número de página donde aparece), \"tipo\" (\"producto\" o \"servicio\"), "
+        f"\"categoria\" (el slug más cercano de esta lista o null: {', '.join(categorias)}), "
+        "\"etiquetas\" (3 a 5 palabras clave en español). No inventes productos ni precios; ignora portadas, "
+        "datos de contacto y textos decorativos. Máximo 60 productos.")
+    t = None
+    if con_texto:
+        texto = "\n".join(f"[Página {i}]\n{p[:3000]}" for i, p in enumerate(paginas, 1) if p)[:40000]
+        t = await _gemini(instruccion + "\n\nTexto del catálogo:\n" + texto, json_=True, max_tokens=6000, timeout=60)
+    elif len(datos) <= 18 * 1024 * 1024:
+        t = await _gemini(instruccion, json_=True, max_tokens=6000, timeout=90,
+                          imagen=(mime, base64.b64encode(datos).decode()))
+    if t:
+        try:
+            items = _limpiar_items(json.loads(t), categorias, total_pag)
+        except Exception:
+            items = []
+        if items:
+            return items, "gemini", None
+    if con_texto:
+        items = items_locales(paginas)
+        if items:
+            return items, "local", "Se leyeron las líneas que tienen precio. Revisa los nombres y completa las descripciones."
+        return [], "local", "El catálogo tiene texto, pero no encontramos productos con precio. Vuelve a intentarlo más tarde."
+    return [], None, ("El catálogo es una imagen o un PDF escaneado y la IA no está disponible en este momento. "
+                      "Vuelve a intentarlo más tarde.")
+
+
 # --- Armador de regalos -----------------------------------------------------------------------
 def armar_combos(candidatos: list, presupuesto: int, max_combos: int = 3) -> list:
     """Combina productos de distintos negocios y categorías sin pasarse del presupuesto.

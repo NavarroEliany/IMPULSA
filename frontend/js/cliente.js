@@ -1,7 +1,7 @@
 // Experiencia del cliente: inicio, búsqueda con IA, negocios, productos, calendario y perfil.
 import { api, estado, actualizarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
-import { ic, esc, pesos, num, fecha, fechaCorta, hace, enDias, mesN, iniciales, foto, fondo, mini, estrellas, tarjetaProducto, tarjetaNegocio,
+import { ic, esc, pesos, precioDe, num, fecha, fechaCorta, hace, enDias, mesN, iniciales, foto, fondo, mini, estrellas, tarjetaProducto, tarjetaNegocio,
   avisar, abrirCapa, cerrarCapa, vacio, campo, tarjetaCatalogo } from './ui.js';
 import { conNav } from './app.js';
 import { formularioGustos, pie } from './publico.js';
@@ -188,16 +188,17 @@ ruta('/producto/([^/]+)', async ([id], q) => {
         <a class="card row g12" style="padding:12px;border-radius:18px" href="#/negocio/${e.slug}"><div class="logo-n" style="width:44px;height:44px;font-size:15px;${e.logo_url ? `background-image:url('${esc(e.logo_url)}')` : 'background:#' + esc(e.color || '16120F')}">${e.logo_url ? '' : iniciales(e.nombre)}</div>
           <div class="crece"><div class="row g6"><b>${esc(e.nombre)}</b>${e.verificado ? ic('vfy', '#EF5A2A', 'width:14px;height:14px') : ''}</div><span class="peq sua">${esc(e.categoria || '')} · ${esc(e.barrio || 'Ocaña')}</span></div><span class="peq neg" style="color:var(--brasa)">Ver tienda →</span></a>
         <div class="col g10"><h1 class="d2">${esc(p.nombre)}</h1>${e.num_resenas ? `<div class="row g10">${estrellas(e.calificacion, 16)}<span class="neg peq">${num(e.calificacion)} · ${e.num_resenas} reseñas del negocio</span></div>` : ''}</div>
-        <div class="row g12 envuelve"><b class="precio" style="font-size:40px;font-weight:800">${serv ? '<span style="font-size:16px;font-weight:500;font-family:var(--fb)" class="sua">desde </span>' : ''}${pesos(p.precio)}</b>${p.precio_antes ? `<span class="antes" style="font-size:18px">${pesos(p.precio_antes)}</span>` : ''}
+        <div class="row g12 envuelve"><b class="precio" style="font-size:40px;font-weight:800">${serv ? '<span style="font-size:16px;font-weight:500;font-family:var(--fb)" class="sua">desde </span>' : ''}${p.precio > 0 ? pesos(p.precio) : '<span style="font-size:28px">Precio a consultar</span>'}</b>${p.precio_antes ? `<span class="antes" style="font-size:18px">${pesos(p.precio_antes)}</span>` : ''}
           ${p.promo ? `<span class="chip solido">${esc(p.promo)} · hasta el ${fechaCorta(p.promo_termina)}</span>` : ''}
           ${serv ? '<span class="chip salvia">Servicio con cita</span>' : p.agotado ? '<span class="chip brasa">Agotado</span>' : p.stock > 0 && p.stock <= 5 ? `<span class="chip brasa">Quedan ${p.stock}</span>` : p.stock > 0 ? '<span class="chip salvia">Disponible</span>' : ''}
           ${p.por_encargo ? '<span class="chip crema">También por encargo</span>' : ''}</div>
         <p style="font-size:16px;color:var(--char);line-height:1.6">${esc(p.descripcion)}</p>
+        ${p.catalogo_id && p.catalogo_url ? `<a class="card row g12" style="padding:12px 16px;border-radius:18px" target="_blank" rel="noopener" href="${esc(p.catalogo_url + (p.catalogo_tipo === 'pdf' && p.catalogo_pagina ? '#page=' + p.catalogo_pagina : ''))}">${ic('file', 'var(--brasa)')}<div class="crece"><b style="font-size:14px">Encontrado en el catálogo «${esc(p.catalogo_titulo || 'del negocio')}»</b><div class="peq sua">${p.catalogo_pagina ? 'Página ' + p.catalogo_pagina + ' · ' : ''}Lo leyó la IA de Impulsa. Ábrelo para ver fotos y detalles.</div></div>${ic('ext')}</a>` : ''}
         ${p.agotado ? `<div class="card col g12" style="background:var(--brasaS);border:0"><b>Este producto está agotado por ahora</b><span class="peq">Activa el aviso y te notificamos apenas el negocio reponga unidades.</span>
             <button class="btn btn-p" data-a="alerta" data-id="${p.id}" data-repinta="1">${ic('bell', '#fff')}${d.tiene_alerta ? 'Aviso activado · quitar' : 'Avísame cuando vuelva'}</button></div>`
           : `<div class="row g12 fila-f ini"><div class="campo"><label>${serv ? '¿Para cuándo lo quieres?' : 'Personalización o nota (opcional)'}</label><input id="nota" maxlength="200" placeholder="${serv ? 'Sábado en la mañana' : 'Color, nombre, dedicatoria…'}"></div>
             ${serv ? '' : `<div class="campo" style="flex:none;width:120px"><label>Cantidad</label><input id="cant" type="number" min="1" max="20" value="1"></div>`}</div>
-          <div class="col g10">${`<button class="btn btn-wa btn-b" style="padding:17px" data-a="wa-prod" data-prod="${p.id}" data-origen="${esc(origen)}">${ic('wa', '#fff')}${serv ? 'Agendar' : 'Pedir'} por WhatsApp · ${pesos(p.precio)}</button>`}
+          <div class="col g10">${`<button class="btn btn-wa btn-b" style="padding:17px" data-a="wa-prod" data-prod="${p.id}" data-origen="${esc(origen)}">${ic('wa', '#fff')}${serv ? 'Agendar' : 'Pedir'} por WhatsApp${p.precio > 0 ? ' · ' + pesos(p.precio) : ''}</button>`}
             <span class="peq sua">Se abre WhatsApp con el mensaje listo para ${esc(e.nombre)}. El pago y la entrega los acuerdas directo con el negocio.</span></div>`}
         <div class="row g10 fila-f"><button class="btn btn-g crece" data-a="fav" data-id="${p.id}">${ic('heart')}Guardar</button>
           <button class="btn btn-g crece" data-a="fecha-nueva" data-idea="${esc(p.nombre)}" data-pres="${p.precio}">${ic('cal')}Agregar a mi calendario</button></div>
