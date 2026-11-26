@@ -68,16 +68,15 @@ Supabase ejecuta dos tareas con `pg_cron`. `generar_recordatorios` corre a diari
 
 ## Cuentas de demostración
 
-La contraseña de todas es `Impulsa2026`.
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Clienta | `laura@impulsa.demo` | `Impulsa2026` |
+| Emprendedora (Arte de Doña Gloria) | `gloria@impulsa.demo` | `Impulsa2026` |
+| Administradora | `admin@impulsa.demo` | Se entrega aparte al docente evaluador |
 
-| Rol | Correo |
-|---|---|
-| Clienta | `laura@impulsa.demo` |
-| Emprendedora (Arte de Doña Gloria) | `gloria@impulsa.demo` |
+La pantalla de inicio de sesión tiene dos botones que entran con las cuentas de clienta y emprendedora.
 
-La pantalla de inicio de sesión tiene dos botones que entran con estas cuentas.
-
-La cuenta de administrador es `admin@impulsa.demo` y su contraseña no está en el repositorio. Nadie puede volverse administrador por su cuenta: el rol solo lo cambia otro administrador desde `#/admin/usuarios`, y la base de datos rechaza cualquier intento de cambiarse el rol, autoverificarse o reactivar un negocio suspendido.
+La contraseña del administrador no está en el repositorio porque este es público y esa cuenta puede suspender negocios y cambiar roles en la plataforma desplegada. Nadie puede volverse administrador por su cuenta: el rol solo lo cambia otro administrador desde `#/admin/usuarios`, y la base de datos rechaza cualquier intento de cambiarse el rol, autoverificarse o reactivar un negocio suspendido.
 
 ## Desplegar en Render
 
