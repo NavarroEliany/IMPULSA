@@ -97,6 +97,10 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
     resultados = await consulta_bd(f["palabras"], f["precio_max"])
     ampliada, sin_exacto, mensaje = False, False, None
     if f["palabras"]:
+        # Lo que el cliente escribió con sus palabras (Gemini agrega sinónimos y eso no debe contar).
+        nucleo = ia.interpretar_local(consulta)["palabras"] if consulta else f["palabras"]
+        # La búsqueda por palabras trae coincidencias sueltas ("pan" en "pantalla", "esmaltado" en una taza).
+        resultados = ia.filtrar_relevantes(resultados, nucleo, f["palabras"])
         # Búsqueda por significado: entiende sinónimos y encuentra lo más parecido aunque no coincidan las palabras.
         vec = await ia.vector(f["palabras"])
         semantica = []
@@ -107,8 +111,6 @@ async def _buscar(d: Busqueda, token: Optional[str], f: Optional[dict] = None, r
                                          p_tipo=d.tipo, p_solo_disponibles=f["solo_disponibles"], p_limite=12) or []
             except HTTPException:
                 semantica = []
-        # Lo que el cliente escribió con sus palabras (Gemini agrega sinónimos y eso no debe contar).
-        nucleo = ia.interpretar_local(consulta)["palabras"] if consulta else f["palabras"]
         faltan = ia.terminos_faltantes(nucleo, resultados)
         significativas = [w for w in ia.terminos_faltantes(nucleo, [{"nombre": ""}])] or nucleo.split()
         if resultados and faltan and len(faltan) >= len(significativas):

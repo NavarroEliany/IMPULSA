@@ -290,6 +290,63 @@ _GENERICAS = set("""regalo regalos detalle detalles sorpresa cosa cosas producto
 personalizado personalizada especial original rico rica sabroso sabrosa grande pequeño pequeno""".split())
 
 
+def _significativas(palabras: str) -> list:
+    """Palabras de la búsqueda que describen el producto (sin genéricas, ocasiones ni destinatarios)."""
+    out = []
+    for w in _plano(palabras or "").split():
+        if len(w) < 3 or w in _VACIAS or w in _GENERICAS or any(re.fullmatch(pt, w) for pt, *_ in _PARA) \
+                or any(re.match(pt, w) for pt, _ in _OCASION_PALABRAS):
+            continue
+        if w not in out:
+            out.append(w)
+    return out
+
+
+def _patron(w: str) -> re.Pattern:
+    # Palabras cortas: palabra completa (evita que "pan" encuentre "pantalla" o "uñas" encuentre "una").
+    if len(w) <= 4:
+        base = w[:-1] if w.endswith("s") and len(w) > 3 else w
+        return re.compile(rf"\b{re.escape(base)}(?:s|es)?\b")
+    raiz = w[:5] if len(w) > 5 else w.rstrip("s")
+    return re.compile(rf"\b{re.escape(raiz)}")
+
+
+def filtrar_relevantes(resultados: list, nucleo: str, sinonimos: str = "") -> list:
+    """Quita lo que la búsqueda por palabras trajo por coincidencias sueltas.
+
+    Se queda un resultado si:
+    - trae en el nombre todas las palabras que escribió el cliente, o
+    - las trae en la descripción, etiquetas o categoría y es del mismo rubro que lo encontrado por nombre, o
+    - trae un sinónimo que agregó la IA (en el nombre o en las etiquetas) y es del mismo rubro.
+    """
+    nuc = _significativas(nucleo)
+    if not resultados or not nuc:
+        return resultados
+    sin = [w for w in _significativas(sinonimos) if w not in nuc]
+    p_nuc, p_sin = [_patron(w) for w in nuc], [_patron(w) for w in sin]
+
+    def textos(p):
+        nombre = _plano(p.get("nombre") or "")
+        resto = _plano(" ".join([p.get("descripcion") or "", " ".join(p.get("etiquetas") or []), p.get("categoria") or ""]))
+        return nombre, resto
+
+    info = []
+    for p in resultados:
+        nombre, resto = textos(p)
+        en_nombre = sum(1 for r in p_nuc if r.search(nombre))
+        en_todo = sum(1 for r in p_nuc if r.search(nombre) or r.search(resto))
+        sin_nombre = 2 if any(r.search(nombre) for r in p_sin) else (1 if any(r.search(resto) for r in p_sin) else 0)
+        info.append((p, en_nombre, en_todo, sin_nombre))
+
+    total = len(p_nuc)
+    rubros = {p.get("categoria_id") for p, en_nombre, _, _ in info if en_nombre == total}
+    if not rubros:
+        rubros = {p.get("categoria_id") for p, en_nombre, _, _ in info if en_nombre > 0}
+    mismo = (lambda p: p.get("categoria_id") in rubros) if rubros else (lambda p: True)
+    return [p for p, en_nombre, en_todo, sin_nombre in info
+            if en_nombre == total or ((en_todo == total or sin_nombre) and mismo(p))]
+
+
 def terminos_faltantes(palabras: str, resultados: list) -> list:
     """Palabras de la búsqueda que no aparecen en ningún resultado (ej. "pescado" en "pescado frito")."""
     if not palabras or not resultados:
