@@ -2,7 +2,7 @@
 import { api, estado, actualizarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
 import { ic, esc, pesos, precioDe, num, fecha, fechaCorta, hace, enDias, mesN, iniciales, foto, fondo, mini, estrellas, tarjetaProducto, tarjetaNegocio,
-  avisar, abrirCapa, cerrarCapa, vacio, campo, tarjetaCatalogo } from './ui.js';
+  avisar, abrirCapa, cerrarCapa, vacio, campo, tarjetaCatalogo, formClave } from './ui.js';
 import { conNav } from './app.js';
 import { formularioGustos, pie } from './publico.js';
 import { bloqueFoto, sello } from './ia.js';
@@ -315,12 +315,13 @@ formularios.fecha = async (f, d) => {
 ruta('/perfil', async () => {
   if (!estado.yo) return ir('#/entrar');
   const p = estado.yo.perfil;
-  return conNav(`<main class="wrap pag" style="gap:28px;max-width:900px"><h1 class="d2">Mi perfil <span class="serif">y gustos.</span></h1>
+  return conNav(`<main class="wrap pag" style="gap:28px;max-width:900px"><h1 class="d2">Mi perfil <span class="serif">y cuenta.</span></h1>
     <form class="card col g16" data-f="perfil"><h3 class="d4">Mis datos</h3>
       <div class="row g16 fila-f">${campo('Nombre', 'nombre', p.nombre, { req: 1 })}${campo('Apellido', 'apellido', p.apellido)}</div>
       <div class="row g16 fila-f">${campo('Celular (WhatsApp)', 'celular', p.celular || '', { tipo: 'tel' })}${campo('Barrio', 'barrio', p.barrio || '')}</div>
       <div data-error></div><button class="btn btn-d" style="align-self:flex-end">Guardar datos</button></form>
     ${p.rol === 'cliente' ? `<form class="card col g24" data-f="gustos"><h3 class="d4">Mis gustos</h3>${await formularioGustos()}<div data-error></div><button class="btn btn-p" style="align-self:flex-end">Guardar gustos</button></form>` : ''}
+    ${formClave()}
     <button class="btn btn-g" style="align-self:flex-start" data-a="salir">${ic('salir')}Cerrar sesión</button></main>`);
 });
 formularios.perfil = async (f, d) => { actualizarYo(await api('/auth/perfil', { metodo: 'PUT', cuerpo: d })); avisar('Datos guardados'); nucleo.repintar(); };

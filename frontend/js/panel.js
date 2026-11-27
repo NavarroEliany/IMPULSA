@@ -1,7 +1,7 @@
 // Panel del emprendedor: estadísticas, productos, contactos, reseñas, promociones y datos del negocio.
 import { api, estado, cargarYo, cargarCategorias } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
-import { ic, esc, pesos, precioDe, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir, tarjetaCatalogo } from './ui.js';
+import { ic, esc, pesos, precioDe, corto, num, hace, fechaCorta, mesN, iniciales, logo, estrellas, avisar, vacio, campo, comprimir, tarjetaCatalogo, formClave } from './ui.js';
 
 const OCASIONES = ['Cumpleaños', 'Aniversario', 'Amor y Amistad', 'Día de la Madre', 'Día del Padre', 'Navidad', 'Halloween', 'Grados', 'Para ella', 'Para él', 'Regalo corporativo'];
 const PAGOS = ['Nequi', 'Daviplata', 'Transferencia Bancolombia', 'Efectivo', 'Tarjeta', 'Llave Bre-B'];
@@ -24,7 +24,7 @@ function marco(activo, html) {
     ${n ? `<a class="row g12 solo-g" style="background:rgba(255,255,255,.06);padding:12px;border-radius:18px" href="#/negocio/${n.slug}"><div class="logo-n" style="width:42px;height:42px;border-radius:12px;font-size:15px;background:var(--oro) center/cover;color:var(--ink);${n.logo_url ? `background-image:url('${esc(n.logo_url)}')` : ''}">${n.logo_url ? '' : iniciales(n.nombre)}</div>
       <div class="crece"><b style="color:var(--cream);font-size:14px">${esc(n.nombre)}</b><div class="min row g4" style="color:var(--oro)">Ver perfil público ${ic('ext', 'currentColor', 'width:11px;height:11px')}</div></div></a>` : ''}
     <nav class="col" style="gap:2px">${n ? en('#/panel', 'home', 'Resumen') + en('#/panel/radar', 'up', 'Radar de demanda', '<span class="ia-tag">IA</span>') + en('#/panel/productos', 'pkg', 'Productos') + en('#/panel/catalogos', 'book', 'Catálogos') + en('#/panel/pedidos', 'msg', 'Contactos y pedidos') + en('#/panel/resenas', 'staro', 'Reseñas') + en('#/panel/promociones', 'tag', 'Promociones') : ''}
-      ${en('#/panel/negocio', 'store', 'Perfil del negocio')}<a href="#/buscar">${ic('compass')}<span>Ver Impulsa</span></a></nav>
+      ${en('#/panel/negocio', 'store', 'Perfil del negocio')}${en('#/panel/cuenta', 'key', 'Mi cuenta')}<a href="#/buscar">${ic('compass')}<span>Ver Impulsa</span></a></nav>
     <div class="crece solo-g"></div>
     <div class="col g10 solo-g" style="background:var(--oro);color:var(--ink);padding:18px;border-radius:20px"><span class="chip tinta" style="color:var(--oro);align-self:flex-start">${ic('spark')}Consejo</span>
       <span class="peq">Los negocios que responden en menos de 15 minutos reciben más reseñas de 5 estrellas.</span></div>
@@ -338,3 +338,17 @@ formularios.negocio = async (f, d) => {
   avisar(d.nuevo ? '¡Tu negocio ya está en Impulsa! Ahora publica tu primer producto' : 'Cambios guardados');
   ir(d.nuevo ? '#/panel/producto/nuevo' : '#/panel/negocio');
 };
+
+// ---------- mi cuenta (datos personales y contraseña del emprendedor)
+ruta('/panel/cuenta', async () => {
+  if (!permitido(true)) return null;
+  const p = estado.yo.perfil;
+  return marco('#/panel/cuenta', `${titulo('Mi cuenta', esc(p.email))}
+    <form class="card col g16" data-f="perfil-emp" style="max-width:560px"><h3 class="d4">Mis datos</h3>
+      <div class="row g16 fila-f">${campo('Nombre', 'nombre', p.nombre, { req: 1 })}${campo('Apellido', 'apellido', p.apellido || '')}</div>
+      ${campo('Celular', 'celular', p.celular || '', { tipo: 'tel' })}
+      <div data-error></div><button class="btn btn-d" style="align-self:flex-start">Guardar datos</button></form>
+    ${formClave()}
+    <button class="btn btn-g" style="align-self:flex-start" data-a="salir">${ic('salir')}Cerrar sesión</button>`);
+});
+formularios['perfil-emp'] = async (f, d) => { await api('/auth/perfil', { metodo: 'PUT', cuerpo: d }); await cargarYo(); avisar('Datos guardados'); nucleo.repintar(); };

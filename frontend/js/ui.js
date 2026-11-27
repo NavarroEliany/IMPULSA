@@ -156,6 +156,14 @@ export const campo = (etq, nombre, valor = '', o = {}) => `<div class="campo"><l
     : o.opciones ? `<select name="${nombre}" ${o.req ? 'required' : ''}>${o.opciones.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(valor) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>`
       : `<input name="${nombre}" type="${o.tipo || 'text'}" value="${esc(valor)}" ${o.req ? 'required' : ''} placeholder="${esc(o.ph || '')}" ${o.min != null ? `min="${o.min}"` : ''} ${o.minlength ? `minlength="${o.minlength}"` : ''} ${o.auto ? `autocomplete="${o.auto}"` : ''} ${o.modo ? `inputmode="${o.modo}"` : ''}>`}
   ${o.ayuda ? `<small>${o.ayuda}</small>` : ''}</div>`;
+// Formulario para cambiar la contraseña desde la cuenta (cliente, emprendedor o administrador).
+export const formClave = () => `<form class="card col g16" data-f="clave" style="max-width:560px"><h3 class="d4">Cambiar contraseña</h3>
+  <p class="peq sua">Por seguridad te pedimos tu contraseña actual. Si no es correcta, no se cambia nada.</p>
+  ${campo('Contraseña actual', 'actual', '', { tipo: 'password', req: 1, auto: 'current-password' })}
+  ${campo('Contraseña nueva', 'nueva', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password', ayuda: 'Mínimo 8 caracteres' })}
+  ${campo('Repite la contraseña nueva', 'nueva2', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password' })}
+  <div data-error></div><button class="btn btn-p" style="align-self:flex-start">${ic('key', '#fff')}Guardar contraseña</button></form>`;
+
 export const datosDe = form => Object.fromEntries(new FormData(form).entries());
 
 // Reduce la foto en el navegador antes de subirla: ahorra datos y espacio.

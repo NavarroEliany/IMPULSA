@@ -1,5 +1,5 @@
 // Impulsa · arranque, navegación y acciones comunes.
-import { api, estado, cargarYo, cerrarSesion } from './api.js';
+import { api, estado, cargarYo, cerrarSesion, entrar } from './api.js';
 import { acciones, formularios, rutas, nucleo, ir } from './nucleo.js';
 import { ic, esc, logo, avisar, abrirCapa, cerrarCapa, hace, iniciales, datosDe } from './ui.js';
 import './publico.js';
@@ -26,7 +26,7 @@ export function navApp(q = '') {
     <button class="redondo" data-a="notis" aria-label="Notificaciones">${ic('bell')}${y.sin_leer ? `<span class="punto">${y.sin_leer}</span>` : ''}</button>
     <div style="position:relative"><button class="avatar" data-a="menu" style="${p.avatar_url ? `background-image:url('${esc(p.avatar_url)}')` : ''}">${p.avatar_url ? '' : iniciales(p.nombre + ' ' + p.apellido)}</button>
       <div class="menu oculto" id="menu"><div style="padding:10px 12px"><b>${esc(p.nombre)} ${esc(p.apellido)}</b><div class="min sua">${esc(p.email)}</div></div>
-      ${ad ? `<a href="#/admin">${ic('shield')}Administración</a><a href="#/admin/cuenta">${ic('key')}Mi cuenta</a>` : es ? `<a href="#/panel">${ic('chart')}Mi panel</a><a href="#/panel/negocio">${ic('store')}Mi negocio</a>` : `<a href="#/perfil">${ic('user')}Mi perfil y gustos</a><a href="#/calendario">${ic('cal')}Mi calendario</a>`}
+      ${ad ? `<a href="#/admin">${ic('shield')}Administración</a><a href="#/admin/cuenta">${ic('key')}Mi cuenta</a>` : es ? `<a href="#/panel">${ic('chart')}Mi panel</a><a href="#/panel/negocio">${ic('store')}Mi negocio</a><a href="#/panel/cuenta">${ic('key')}Mi cuenta</a>` : `<a href="#/perfil">${ic('user')}Mi perfil y contraseña</a><a href="#/calendario">${ic('cal')}Mi calendario</a>`}
       <button data-a="salir">${ic('salir')}Cerrar sesión</button></div></div></header>`;
 }
 export const conNav = (html, q) => (estado.yo ? navApp(q) : navPublica()) + html;
@@ -131,3 +131,13 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape') cerrarCapa
 window.addEventListener('hashchange', pintar);
 
 cargarYo().then(pintar);
+
+// Cambio de contraseña desde "Mi cuenta" (lo usan los tres roles).
+formularios.clave = async (f, d) => {
+  if ((d.nueva || '').length < 8) throw new Error('La contraseña nueva debe tener mínimo 8 caracteres');
+  if (d.nueva !== d.nueva2) throw new Error('Las contraseñas nuevas no coinciden');
+  if (d.nueva === d.actual) throw new Error('La contraseña nueva debe ser distinta de la actual');
+  await entrar('/auth/clave', { actual: d.actual, nueva: d.nueva }, 'PUT');
+  f.reset();
+  avisar('Contraseña cambiada. La próxima vez entra con la nueva.');
+};

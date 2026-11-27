@@ -1,7 +1,7 @@
 // Panel del administrador: cifras de la plataforma, usuarios, negocios, productos, reseñas, contenido y anuncios.
 import { api, estado, entrar } from './api.js';
 import { acciones, formularios, ruta, ir, nucleo } from './nucleo.js';
-import { ic, esc, pesos, num, hace, mesN, iniciales, logo, estrellas, avisar, vacio, campo } from './ui.js';
+import { ic, esc, pesos, num, hace, mesN, iniciales, logo, estrellas, avisar, vacio, campo, formClave } from './ui.js';
 
 function permitido() {
   if (!estado.yo) { ir('#/entrar'); return false; }
@@ -237,15 +237,6 @@ ruta('/admin/cuenta', async () => {
   if (!permitido()) return null;
   const p = estado.yo.perfil;
   return marco('#/admin/cuenta', `${titulo('Mi cuenta', esc(p.email))}
-    <form class="card col g16" data-f="adm-clave" style="max-width:560px"><h3 class="d4">Cambiar contraseña</h3>
-      ${campo('Contraseña actual', 'actual', '', { tipo: 'password', req: 1, auto: 'current-password' })}
-      ${campo('Contraseña nueva', 'nueva', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password', ayuda: 'Mínimo 8 caracteres' })}
-      ${campo('Repite la contraseña nueva', 'nueva2', '', { tipo: 'password', req: 1, minlength: 8, auto: 'new-password' })}
-      <div data-error></div><button class="btn btn-p" style="align-self:flex-start">Guardar contraseña</button></form>
+    ${formClave()}
     <div class="card col g8" style="max-width:560px"><h3 class="d4">Otros administradores</h3><span class="peq sua">Para darle acceso a alguien de tu equipo, pídele que cree su cuenta en Impulsa y luego cámbiale el rol a «Administrador» en <a class="neg" style="color:var(--brasa)" href="#/admin/usuarios">Usuarios</a>.</span></div>`);
 });
-formularios['adm-clave'] = async (f, d) => {
-  if (d.nueva !== d.nueva2) throw new Error('Las contraseñas nuevas no coinciden');
-  await entrar('/auth/clave', { actual: d.actual, nueva: d.nueva }, 'PUT');
-  avisar('Contraseña cambiada'); f.reset();
-};

@@ -32,7 +32,12 @@ class Refresco(BaseModel):
 
 class CambioClave(BaseModel):
     actual: str
-    nueva: str = Field(min_length=8)
+    nueva: str
+
+
+# Cuentas que usan los botones "Entrar como cliente / emprendedora" de la pantalla de inicio de sesión.
+# Si alguien les cambia la contraseña, los botones dejan de funcionar para todos.
+DEMO_COMPARTIDAS = {"laura@impulsa.demo", "gloria@impulsa.demo"}
 
 
 class Recuperar(BaseModel):
@@ -126,13 +131,20 @@ async def nueva_clave(d: NuevaClave):
 
 @r.put("/clave", summary="Cambiar mi contraseña (pide la actual)")
 async def cambiar_clave(d: CambioClave, token: str = Depends(sb.token_requerido)):
+    if len(d.nueva) < 8:
+        raise HTTPException(400, "La contraseña nueva debe tener mínimo 8 caracteres")
+    if d.nueva == d.actual:
+        raise HTTPException(400, "La contraseña nueva debe ser distinta de la actual")
     perfil = await sb.uno("perfiles", token, id=f"eq.{sb.uid_de(token)}", select="email")
     if not perfil:
         raise HTTPException(401, "Inicia sesión de nuevo")
     try:
         await _entrar(perfil["email"], d.actual)
     except HTTPException:
-        raise HTTPException(400, "La contraseña actual no es correcta")
+        raise HTTPException(400, "La contraseña actual no es correcta. No se cambió nada.")
+    if perfil["email"].lower() in DEMO_COMPARTIDAS:
+        raise HTTPException(403, "Esta es una cuenta de demostración compartida: su contraseña no se puede cambiar "
+                                 "para que el botón de demostración siga funcionando. Prueba con tu propia cuenta.")
     await sb.pedir("PUT", "/auth/v1/user", token, json_={"password": d.nueva})
     return await _entrar(perfil["email"], d.nueva)
 
